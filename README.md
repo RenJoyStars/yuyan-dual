@@ -7,6 +7,17 @@
 2. [Rime引擎](https://github.com/rime/librime)
 3. [sherpa-ncnn](https://github.com/k2-fsa/sherpa-ncnn)
 # 更新日志
+
+## 0.3（私有维护版）
+### 移除
+1. 删除离线语音输入（sherpa-ncnn）：按住空格说话、语音设置页、语音相关权限一并去掉
+   - 同时移除 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` 权限与权限请求 Activity
+   - 仓库里只留了 `.param`，语音模型 `.bin` 本来就不在版本库内
+
+### 修复
+1. **UU远程（`com.netease.uuremote`）里点输入框不弹键盘**：该应用强制「键盘与输入框同屏」，
+   不再按「主屏横屏 → 键盘去副屏」的规则送走
+2. 副屏处于熄屏状态（`Display.STATE_OFF`）时不再把键盘送过去，回落到主屏显示
 ## 2025-11-07
 ### 新增：
 支持语音输入，按住空格说话即可输入
