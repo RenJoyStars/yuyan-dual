@@ -50,6 +50,24 @@ open class BaseContainer(@JvmField var mContext: Context, inputView: InputView) 
     }
 
     /**
+     * 设定键盘高度后重建环境与键盘，返回键盘高度是否真的变了。
+     *
+     * 注意用 mContext（当前这块屏幕的 Context）的 metrics：副屏上拖高度时，
+     * 原来调 initData()，取的是 Launcher（主屏）的尺寸 —— 主副屏分辨率不同时，
+     * 键盘会按主屏重算，宽高和实际窗口对不上，键位被拉变形。
+     */
+    private fun refreshKeyboardMetrics(): Boolean {
+        val before = EnvironmentSingleton.instance.skbHeight
+        EnvironmentSingleton.instance.initDataWithDisplayMetrics(mContext.resources.displayMetrics)
+        // 高度没变（拖动不足 1px / 已到上限）就别拆了重建，能少一次闪烁
+        if (EnvironmentSingleton.instance.skbHeight == before) return false
+        KeyboardLoaderUtil.instance.clearKeyboardMap()
+        KeyboardManager.instance.clearKeyboard()
+        updateSkbLayout()
+        return true
+    }
+
+    /**
      * 设置键盘高度
      */
     @SuppressLint("ClickableViewAccessibility")
@@ -57,11 +75,11 @@ open class BaseContainer(@JvmField var mContext: Context, inputView: InputView) 
         val rootView = LayoutInflater.from(context).inflate(R.layout.layout_ime_keyboard_height_shadow, this, false)
         this.addView(rootView)
         rootView.findViewById<View>(R.id.ll_keyboard_height_reset).setOnClickListener { _: View? ->
-            EnvironmentSingleton.instance.keyBoardHeightRatio = 0.3f
-            EnvironmentSingleton.instance.initData()
-            KeyboardLoaderUtil.instance.clearKeyboardMap()
-            KeyboardManager.instance.clearKeyboard()
-            updateSkbLayout()
+            // 恢复到「当前这块屏幕 + 当前显示状态」的默认高度，
+            // 而不是统一写 0.3（副屏全屏默认是 0.7，写 0.3 会突然矮一半）
+            EnvironmentSingleton.instance.keyBoardHeightRatio =
+                EnvironmentSingleton.defaultHeightRatio(EnvironmentSingleton.instance.currentDisplayState)
+            refreshKeyboardMetrics()
         }
         rootView.findViewById<View>(R.id.ll_keyboard_height_sure).setOnClickListener { removeView(rootView) }
         rootView.findViewById<View>(R.id.iv_keyboard_height_Top).setOnTouchListener { v12: View, event -> onModifyKeyboardHeightEvent(v12, event) }
@@ -99,23 +117,17 @@ open class BaseContainer(@JvmField var mContext: Context, inputView: InputView) 
                 val y = event.y
                 if (!isHandling && abs((y - lastY[0]).toDouble()) > dp(10)) {
                     isHandling = true
-                    var rat = EnvironmentSingleton.instance.keyBoardHeightRatio
-                    if (y < lastY[0]) { // 手指向上移动
-                        rat += 0.01f
-                    } else { // 向下移动
-                        rat -= 0.01f
-                    }
+                    // 比例限制在 0.25–0.85：拖到 0 以下会让键盘高度变负（MeasureSpec 直接崩），
+                    // 拖太高则会把候选栏顶出屏幕。夹住之后怎么拖都不会变形。
+                    val next = (EnvironmentSingleton.instance.keyBoardHeightRatio +
+                            if (y < lastY[0]) 0.01f else -0.01f).coerceIn(0.25f, 0.85f)
                     lastY[0] = y
-                    EnvironmentSingleton.instance.keyBoardHeightRatio = rat
-                    EnvironmentSingleton.instance.initData()
-                    KeyboardLoaderUtil.instance.clearKeyboardMap()
-                    KeyboardManager.instance.clearKeyboard()
-                    updateSkbLayout()
-                    val l = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        EnvironmentSingleton.instance.skbHeight
-                    )
-                    rootView.setLayoutParams(l)
+                    EnvironmentSingleton.instance.keyBoardHeightRatio = next
+                    // 不用再手动 setLayoutParams：容器的 onMeasure 按 skbHeight 量，
+                    // 窗口是 wrap_content，会自己跟着变。（原来这里改的是 rootView，
+                    // 也就是整个视图树的根，等于把 IME 窗口强行改成只有键盘那么高，
+                    // 候选栏被挤掉、拖动时一闪一闪，就是这个原因。）
+                    refreshKeyboardMetrics()
                     isHandling = false
                 }
             }

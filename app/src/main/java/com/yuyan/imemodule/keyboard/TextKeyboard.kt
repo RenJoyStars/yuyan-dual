@@ -180,10 +180,27 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
      */
     private fun drawSoftKey(canvas: Canvas, softKey: SoftKey, keyXMargin: Int, keyYMargin: Int) {
         val bg = GradientDrawable()
+        val isEnter = softKey.code == KeyEvent.KEYCODE_ENTER
+        // 强调键（回车/发送）单独一套几何：左右留两倍间距、圆角取短边的一半。
+        // 这样它不管落在什么比例的单元格里（切布局后占两行、拖动键盘高度后变扁变高），
+        // 都是规整的胶囊/圆形，不会像原来用 OVAL 那样被拉成椭圆。
+        // 开了「按键边框」时所有键统一用同一套圆角，保持整齐，不走胶囊。
+        val capsule = isEnter && !isKeyBorder
+        val insetX = if (capsule) keyXMargin * 2 else keyXMargin
+        val insetY = keyYMargin
+        val left = softKey.mLeft + insetX
+        val top = softKey.mTop + insetY
+        val right = softKey.mRight - insetX
+        val bottom = softKey.mBottom - insetY
+        val bgWidth = right - left
+        val bgHeight = bottom - top
         bg.shape = GradientDrawable.RECTANGLE
-        bg.cornerRadius = keyRadius.toFloat() // 设置圆角半径
-        bg.setBounds(softKey.mLeft + keyXMargin, softKey.mTop + keyYMargin, softKey.mRight - keyXMargin, softKey.mBottom - keyYMargin)
-        if (softKey.pressed || (mService?.hasSelection == true && softKey.code == InputModeSwitcherManager.USER_DEF_KEYCODE_SELECT_MODE)) {
+        bg.cornerRadius = if (capsule) min(bgWidth, bgHeight) / 2f else keyRadius.toFloat()
+        bg.setBounds(left, top, right, bottom)
+
+        if (bgWidth <= 0 || bgHeight <= 0) {
+            // 尺寸异常（极端缩放）时不画底，只画文字，避免出现负宽高的怪形状
+        } else if (softKey.pressed || (mService?.hasSelection == true && softKey.code == InputModeSwitcherManager.USER_DEF_KEYCODE_SELECT_MODE)) {
             bg.setColor(mActiveTheme.keyPressHighlightColor)
             bg.draw(canvas)
         } else if (isKeyBorder) {
@@ -194,16 +211,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             }
             bg.setColor(background)
             bg.draw(canvas)
-        } else if(softKey.code == KeyEvent.KEYCODE_ENTER) {
-               bg.setColor(mActiveTheme.accentKeyBackgroundColor)
-               bg.shape = GradientDrawable.OVAL
-               val bgWidth = softKey.width() -  keyXMargin
-               val bgHeight = softKey.height() - keyYMargin
-               val radius = min(bgWidth, bgHeight)*3/4
-               val keyMarginX = (bgWidth - radius)/2
-               val keyMarginY = (bgHeight - radius)/2
-                bg.setBounds(softKey.mLeft + keyMarginX, softKey.mTop + keyMarginY, softKey.mRight - keyMarginX, softKey.mBottom - keyMarginY)
-                bg.draw(canvas)
+        } else if (capsule) {
+            bg.setColor(mActiveTheme.accentKeyBackgroundColor)
+            bg.draw(canvas)
         }
         val keyLabel = if(mService != null && InputModeSwitcherManager.isEnglish) {
             if (InputModeSwitcherManager.isEnglishLower || (InputModeSwitcherManager.isEnglishUpperCase && !DecodingInfo.isCandidatesListEmpty)) {

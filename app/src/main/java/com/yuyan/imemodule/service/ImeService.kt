@@ -22,7 +22,6 @@ import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.data.theme.ThemeManager.removeOnChangedListener
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.utils.StringUtils
-import android.app.Activity
 import com.yuyan.imemodule.keyboard.container.CandidatesContainer
 import android.view.inputmethod.InputConnection
 import splitties.bitflags.hasFlag
@@ -30,20 +29,10 @@ import android.hardware.display.DisplayManager
 import android.view.Display
 import com.yuyan.imemodule.keyboard.container.T9TextContainer
 import com.yuyan.imemodule.keyboard.container.HandwritingContainer
-import com.yuyan.imemodule.keyboard.TextKeyboard
-import android.content.res.Configuration
 import kotlinx.coroutines.*
-import com.yuyan.imemodule.utils.KeyboardLoaderUtil
 import com.yuyan.imemodule.data.theme.ThemeManager.OnThemeChangeListener
 import com.yuyan.imemodule.prefs.AppPrefs.Companion.getInstance
-import android.widget.TextView
-import android.util.TypedValue
-import android.graphics.Color
-import android.view.Gravity
 import android.content.Context
-import android.content.Intent
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
 
 class ImeService : InputMethodService() {
     private var isWindowShown = false // 键盘窗口是否已显示
@@ -53,9 +42,6 @@ class ImeService : InputMethodService() {
     private var placeholderView: View? = null
     private var displayManager: DisplayManager? = null
     private val logTag = "YuyanImeDual"
-    // 调试覆盖层已隐藏
-    private var debugOverlayPrimary: TextView? = null
-    private var debugContextInfo: String = ""
 
     private var lastDisplayState: EnvironmentSingleton.DisplayState? = null
     
@@ -82,12 +68,16 @@ class ImeService : InputMethodService() {
             val secId = secondaryPresentation?.display?.displayId
             // Log.d(logTag, "displayListener onDisplayChanged id=$displayId secId=$secId") // 调试标签已隐藏
             if (secId != null && secId == displayId) {
-                // 旋转或尺寸变化：刷新标签与尺寸（避免频繁重建，尽量轻量更新）
-                val dmSecSecSec2 = secondaryPresentation?.context?.resources?.displayMetrics
-                if (dmSecSecSec2 != null) {
-                    EnvironmentSingleton.instance.initDataWithDisplayMetrics(dmSecSecSec2)
+                // 旋转或尺寸变化：先按新尺寸重算环境，再让副屏键盘按新尺寸重建，
+                // 否则键盘还是旧的宽高，键位会被拉伸（回车键最容易看出来）
+                val dmSec = secondaryPresentation?.context?.resources?.displayMetrics
+                if (dmSec != null) {
+                    EnvironmentSingleton.instance.initDataWithDisplayMetrics(dmSec)
+                    val view = secondaryInputView
+                    if (view != null) {
+                        view.post { view.relayoutKeyboard() }
+                    }
                 }
-                // refreshDebugLabel() // 调试标签已隐藏
             }
         }
     }
@@ -109,36 +99,13 @@ class ImeService : InputMethodService() {
         }
     }
 
-    private fun buildDebugOverlay(context: Context): TextView {
-        // 调试覆盖层已隐藏
-        val tv = TextView(context)
-        tv.apply {
-            text = ""
-            // setTextColor(Color.argb(255, 255, 0, 0))
-            // setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-            // gravity = Gravity.CENTER
-            // isClickable = false
-            // isFocusable = false
-            // isFocusableInTouchMode = false
-            // importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            // alpha = 1f
-            // elevation = 100f
-            // layoutParams = FrameLayout.LayoutParams(
-            //     ViewGroup.LayoutParams.MATCH_PARENT,
-            //     ViewGroup.LayoutParams.MATCH_PARENT,
-            //     Gravity.CENTER
-            // )
-        }
-        return tv
-    }
-
     override fun onCreateInputView(): View {
         placeholderView = View(this)
         return placeholderView!!
     }
 
     override fun setInputView(view: View) {
-        // 包装原主屏输入视图，加入调试 overlay
+        // 包一层 FrameLayout，保证视图能被安全地换父容器
         val container = FrameLayout(this)
         container.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         if (view is InputView) {
@@ -146,10 +113,6 @@ class ImeService : InputMethodService() {
             // 修复：避免重复添加已有父视图导致崩溃
             (view.parent as? ViewGroup)?.removeView(view)
             container.addView(view)
-            // 调试覆盖层已隐藏
-            // val overlay = buildDebugOverlay(view.context)
-            // debugOverlayPrimary = overlay
-            // container.addView(overlay)
             super.setInputView(container)
         } else {
             super.setInputView(view)
@@ -158,11 +121,29 @@ class ImeService : InputMethodService() {
 
     private fun getActiveInputView(): InputView? = secondaryInputView ?: if (::mInputView.isInitialized) mInputView else null
 
+    /** 当前是否真的存在一块可用于 Presentation 的副屏（合盖/单屏时为 false） */
+    private fun hasPresentationDisplay(): Boolean = try {
+        val dm = displayManager ?: getSystemService(DisplayManager::class.java)
+        dm?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)?.isNotEmpty() == true
+    } catch (_: Throwable) {
+        false
+    }
+
+    /** 当前输入法窗口所在的屏幕 id（拿不到就当主屏 0） */
+    private fun currentWindowDisplayId(): Int = try {
+        window?.window?.decorView?.display?.displayId ?: Display.DEFAULT_DISPLAY
+    } catch (_: Throwable) {
+        Display.DEFAULT_DISPLAY
+    }
+
     @Synchronized
     private fun tryShowSecondary(editorInfo: EditorInfo, restarting: Boolean): Boolean {
         val dm = displayManager ?: getSystemService(DisplayManager::class.java)
         val displays = dm?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
-        val second = displays?.firstOrNull()
+        // 有多块可选时，优先挑「不是当前输入法窗口所在」的那一块
+        val selfDisplayId = currentWindowDisplayId()
+        val second = displays?.firstOrNull { it.displayId != selfDisplayId }
+            ?: displays?.firstOrNull()
         // Log.d(logTag, "tryShowSecondary: displays=${displays?.size ?: 0} second=${second}") // 调试标签已隐藏
         if (second == null) return false
         // 屏没亮（合盖/单屏模式）就别把键盘往副屏送，否则等于没有键盘
@@ -175,7 +156,6 @@ class ImeService : InputMethodService() {
             // Log.d(logTag, "tryShowSecondary: already showing on displayId=${second.displayId}, skip re-show") // 调试标签已隐藏
             try {
                 secondaryInputView?.onStartInputView(editorInfo, restarting)
-                // refreshDebugLabel() // 调试标签已隐藏
                 return true
             } catch (t: Throwable) {
                 Log.e(logTag, "tryShowSecondary: refresh existing failed, will recreate", t)
@@ -191,7 +171,6 @@ class ImeService : InputMethodService() {
             secondaryInputView = secondaryPresentation!!.inputView
             secondaryInputView!!.onStartInputView(editorInfo, restarting)
             // Log.d(logTag, "tryShowSecondary: shown on ${second}") // 调试标签已隐藏
-            // refreshDebugLabel() // 调试标签已隐藏
             return true
         } catch (t: Throwable) {
             Log.e(logTag, "tryShowSecondary: failed", t)
@@ -208,34 +187,6 @@ class ImeService : InputMethodService() {
         secondaryPresentation = null
     }
 
-    private fun refreshDebugLabel() {
-        val state = EnvironmentSingleton.instance.currentDisplayState
-        val label = when (state) {
-            // 调试标签已隐藏
-            EnvironmentSingleton.DisplayState.SecondaryFullscreen -> "全屏"
-            EnvironmentSingleton.DisplayState.SecondaryLandscape -> "副屏横屏"
-            EnvironmentSingleton.DisplayState.SecondaryPortrait -> "副屏竖屏"
-            EnvironmentSingleton.DisplayState.PrimaryPortrait -> "主屏竖屏"
-        }
-        val info = buildString {
-            append(label)
-            if (debugContextInfo.isNotEmpty()) {
-                append('\n')
-                append(debugContextInfo)
-            }
-        }
-        if (secondaryPresentation != null && state == EnvironmentSingleton.DisplayState.SecondaryFullscreen) {
-            val dmSec = secondaryPresentation?.context?.resources?.displayMetrics
-            // Log.d(logTag, "refreshDebugLabel secondary(full) label=$label secMetrics=${dmSec?.widthPixels}x${dmSec?.heightPixels}") // 调试标签已隐藏
-            // 调试覆盖层已隐藏
-            // secondaryPresentation?.updateDebugLabel(info)
-        } else {
-            // Log.d(logTag, "refreshDebugLabel primary(normal) label=$label") // 调试标签已隐藏
-            // 调试覆盖层已隐藏
-            // debugOverlayPrimary?.text = info
-        }
-    }
-
     override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         // Log.d(logTag, "onStartInputView restarting=$restarting") // 调试标签已隐藏
         YuyanEmojiCompat.setEditorInfo(editorInfo)
@@ -245,53 +196,56 @@ class ImeService : InputMethodService() {
         val currentWindowMetrics = try {
             currentWindowDisplay?.let { createDisplayContext(it).resources.displayMetrics }
         } catch (_: Throwable) { null } ?: baseContext.resources.displayMetrics
-        val currentResources = try {
-            currentWindowDisplay?.let { createDisplayContext(it).resources }
-        } catch (_: Throwable) { null } ?: resources
-        val configuration = currentResources.configuration
-        // 调试信息已隐藏
-        debugContextInfo = buildString {
-            // append("windowDisplay=")
-            // append(currentWindowDisplay?.displayId ?: "unknown")
-            // append(" | metrics=")
-            // append(currentWindowMetrics.widthPixels)
-            // append("x")
-            // append(currentWindowMetrics.heightPixels)
-            // append(" density=")
-            // append(currentWindowMetrics.densityDpi)
-            // append(" | orientation=")
-            // append(configuration.orientation)
-            // append(" | screenLayout=0x")
-            // append(configuration.screenLayout.toString(16))
-        }
-
-        // 始终先关闭旧的副屏窗口，避免残留
-        dismissSecondary()
-
+        // 先关掉旧副屏窗口再决定要不要重建（下面会判断能否复用）
         val editorPkg = try { editorInfo.packageName } catch (_: Throwable) { null }
         // Log.d(logTag, "debug: editorPkg=$editorPkg rawMetrics=${currentWindowMetrics.widthPixels}x${currentWindowMetrics.heightPixels}") // 调试标签已隐藏
 
-        // 简化状态判断：基于当前窗口的原始显示尺寸推断显示状态
         val widthPx = currentWindowMetrics.widthPixels
         val heightPx = currentWindowMetrics.heightPixels
+        val hasSecondaryDisplay = hasPresentationDisplay()
+
+        // 状态推断补两条：
+        // ① 「宽度 ≥1920」不再直接等于副屏全屏 —— 单屏横屏手机（1920×1080）也会命中，
+        //    那样键盘会按全屏状态撑到 70% 高，把应用挤没。没有副屏一律按本屏处理。
+        // ② 横屏判断加上「宽 > 高」，避免 1200×2000 这种竖屏平板被误判成副屏横屏。
         val inferredState = when {
-            widthPx >= 1920 -> EnvironmentSingleton.DisplayState.SecondaryFullscreen
-            widthPx in 1081..1919 -> EnvironmentSingleton.DisplayState.SecondaryLandscape
-            heightPx > 1600 -> EnvironmentSingleton.DisplayState.PrimaryPortrait
-            else -> EnvironmentSingleton.DisplayState.SecondaryPortrait
+            widthPx >= 1920 && hasSecondaryDisplay ->
+                EnvironmentSingleton.DisplayState.SecondaryFullscreen
+            widthPx >= 1081 && widthPx > heightPx ->
+                EnvironmentSingleton.DisplayState.SecondaryLandscape
+            heightPx > 1600 ->
+                EnvironmentSingleton.DisplayState.PrimaryPortrait
+            else ->
+                EnvironmentSingleton.DisplayState.SecondaryPortrait
         }
         EnvironmentSingleton.instance.currentDisplayState = inferredState
         EnvironmentSingleton.instance.forceFullOnSecondary = inferredState == EnvironmentSingleton.DisplayState.SecondaryFullscreen
-        // Log.d(logTag, "inferredState=$inferredState from width=$widthPx height=$heightPx") // 调试标签已隐藏
 
         val forceSameScreen = editorPkg != null && sameScreenPackages.contains(editorPkg)
         val shouldUsePresentation = !forceSameScreen &&
                 inferredState == EnvironmentSingleton.DisplayState.SecondaryFullscreen
-        Log.d(logTag, "pkg=$editorPkg state=$inferredState sameScreen=$forceSameScreen")
+        Log.d(logTag, "pkg=$editorPkg state=$inferredState sameScreen=$forceSameScreen secondary=$hasSecondaryDisplay")
+
+        // 已经在同一块副屏上显示、且显示状态没变 → 直接复用，不要再 dismiss + 重建。
+        // 原来每次都先关再开，切个输入框就闪一下，而且重建期间候选词、布局状态会丢。
+        val stateChanged = lastDisplayState != null && lastDisplayState != inferredState
+        val reuseExisting = shouldUsePresentation && !stateChanged &&
+                secondaryPresentation?.isShowing == true
+        if (!reuseExisting) dismissSecondary()
+
         val shownOnSecondary = if (shouldUsePresentation) {
             tryShowSecondary(editorInfo, restarting)
         } else {
             false
+        }
+
+        // 该送副屏但没送成（副屏被占用 / 熄屏 / 创建失败）：状态退回本屏，
+        // 否则会按「全屏 70%」的比例把键盘铺在主屏上，一开键盘就遮掉大半个屏幕。
+        if (shouldUsePresentation && !shownOnSecondary) {
+            EnvironmentSingleton.instance.currentDisplayState =
+                if (widthPx > heightPx) EnvironmentSingleton.DisplayState.SecondaryLandscape
+                else EnvironmentSingleton.DisplayState.PrimaryPortrait
+            EnvironmentSingleton.instance.forceFullOnSecondary = false
         }
         // Log.d(logTag, "shownOnSecondary=$shownOnSecondary") // 调试标签已隐藏
 
@@ -319,7 +273,6 @@ class ImeService : InputMethodService() {
         applyRelayoutIfDisplayChanged()
 
         // 最后刷新调试标签，确保当前场景被正确显示
-        // refreshDebugLabel() // 调试标签已隐藏
     }
 
     private fun applyRelayoutIfDisplayChanged() {

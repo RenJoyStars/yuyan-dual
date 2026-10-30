@@ -240,7 +240,11 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 }
                 if(dy.absoluteValue > 10){
                     bottomPaddingValue -= dy.toInt()
-                    bottomPaddingValue = if(bottomPaddingValue < 0) 0 else bottomPaddingValue
+                    // 上限 = 屏幕高度 - 键盘高度：原来只挡住负值，往上拖可以把键盘
+                    // 整块推出屏幕（副屏键盘本来就高，更容易拖过头）
+                    val maxBottom = (EnvironmentSingleton.instance.mScreenHeight - mSkbRoot.height)
+                        .coerceAtLeast(0)
+                    bottomPaddingValue = bottomPaddingValue.coerceIn(0, maxBottom)
                     initialTouchY = event.rawY
                     mSkbRoot.bottomPadding = bottomPaddingValue
                 }
@@ -764,8 +768,40 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         }
     }
 
+    /**
+     * 把 KeyboardManager 和按键气泡层绑定到本视图。
+     * 主屏/副屏各有一个 InputView，而 manager / 气泡层都是单例，
+     * 谁最后构造就挂在谁身上 —— 不重新绑定就会出现
+     * 「切布局作用到另一块屏上」「长按按键看不到气泡」的怪现象。
+     */
+    fun bindKeyboardManager() {
+        KeyboardManager.instance.setData(mSkbRoot.findViewById(R.id.skb_input_keyboard_view), this)
+        bindPopupLayer()
+    }
+
+    /** 按键气泡（长按预览、权限提示）是单例视图，进入哪块屏就搬到哪个 InputView 里 */
+    private fun bindPopupLayer() {
+        val popupRoot = PopupComponent.get().root
+        val parent = popupRoot.parent as? ViewGroup
+        if (parent === this) return
+        parent?.removeView(popupRoot)
+        addView(popupRoot, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+            addRule(ALIGN_BOTTOM, mSkbRoot.id)
+            addRule(ALIGN_LEFT, mSkbRoot.id)
+        })
+    }
+
+    /** 屏幕尺寸/方向变化后，按新的环境尺寸重建键盘 */
+    fun relayoutKeyboard() {
+        bindKeyboardManager()
+        KeyboardManager.instance.clearKeyboard()
+        KeyboardManager.instance.switchKeyboard()
+        updateCandidateBar()
+    }
+
     @SuppressLint("SimpleDateFormat")
     fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
+        bindKeyboardManager()
         InputModeSwitcherManager.requestInputWithSkb(editorInfo)
         KeyboardManager.instance.switchKeyboard()
         resetToIdleState()

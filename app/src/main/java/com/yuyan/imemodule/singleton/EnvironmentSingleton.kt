@@ -59,41 +59,57 @@ class EnvironmentSingleton private constructor() {
     }
 
     private fun reinitWithDisplayMetrics(dm: DisplayMetrics) {
+        // 副屏刚创建/切换时 metrics 偶尔是 0，按 0 算会得到 0 宽高的键盘（一屏空白）。
+        // 直接沿用上一次的尺寸，等下一次有效回调再更新。
+        if (dm.widthPixels <= 0 || dm.heightPixels <= 0) return
+
         mScreenWidth = dm.widthPixels
         mScreenHeight = dm.heightPixels
         isLandscape = mScreenHeight <= mScreenWidth
-        val screenWidthVertical = min(dm.widthPixels, dm.heightPixels)
-        val screenHeightVertical = max(dm.widthPixels, dm.heightPixels)
 
-        // 键盘尺寸计算（不再考虑悬浮或单手占位）
-        inputAreaWidth = screenWidthVertical
-        holderWidth = 0
-        skbWidth = screenWidthVertical
-
-        if(isLandscape){
+        // 键盘宽度：竖屏取窄边；横屏（含副屏横屏/全屏）取实际宽度
+        if (isLandscape) {
             inputAreaWidth = mScreenWidth
             skbWidth = inputAreaWidth
+        } else {
+            inputAreaWidth = min(dm.widthPixels, dm.heightPixels)
+            skbWidth = inputAreaWidth
         }
+        holderWidth = 0
 
-        // 根据显示状态选择独立的高度比例；全屏状态默认按候选区以下区域自动填充，当设置自定义比例 (>0) 时优先生效
+        // 根据显示状态选择独立的高度比例
         val prefsInternal = AppPrefs.getInstance().internal
-        val ratio = when (currentDisplayState) {
+        val configured = when (currentDisplayState) {
             DisplayState.PrimaryPortrait -> prefsInternal.heightRatioPrimaryPortrait.getValue()
             DisplayState.SecondaryPortrait -> prefsInternal.heightRatioSecondaryPortrait.getValue()
             DisplayState.SecondaryLandscape -> prefsInternal.heightRatioSecondaryLandscape.getValue()
-            DisplayState.SecondaryFullscreen -> {
-                val pref = prefsInternal.heightRatioSecondaryFullscreen.getValue()
-                if (pref > 0f) pref else 0.7f
-            }
+            DisplayState.SecondaryFullscreen -> prefsInternal.heightRatioSecondaryFullscreen.getValue()
         }
+        // 历史数据里可能存了 0 / 负数（旧版「重置」会写 0.3，拖到边界还可能越界），回落到默认值
+        val ratio = if (configured in 0.2f..0.9f) configured else defaultHeightRatio(currentDisplayState)
         keyboardHeightRatio = ratio
 
-        skbHeight = (screenHeightVertical * keyboardHeightRatio).toInt()
+        // 高度基数 = 屏幕实际高度。
+        // 旧版用 max(width,height)：竖屏时它就是高度（一致），但横屏 1920×1080 会按 1920 算，
+        // 0.5 的比例直接得到 960px（占屏幕 89%），0.7 更是 1344px —— 比屏幕还高、顶部被裁。
+        // 比例就是「占屏幕高度的几分之几」，这样横竖屏语义才一致，拖动也不会出现
+        // 「拉到某个高度之后怎么拖都不动」的死区。
+        var skb = (mScreenHeight * ratio).toInt()
+        val minSkb = (96 * dm.density).toInt()
+        if (skb < minSkb) skb = minSkb
+
+        // 候选栏高度约占键盘高度的 29%（原公式 0.1×2.9，随候选字号缩放），
+        // 两者相加不能顶穿屏幕，否则键盘顶部会被裁掉一截。
+        // 兜底：即使比例配得很大，也不让键盘顶穿屏幕。
+        val candidateScale = AppPrefs.getInstance().keyboardSetting.candidateTextSize.getValue() / 100f
+        val candidateFactor = 0.1f * 2.9f * candidateScale
+        val maxSkb = (mScreenHeight * 0.96f / (1f + candidateFactor)).toInt()
+        if (skb > maxSkb) skb = maxSkb.coerceAtLeast(minSkb)
+        skbHeight = skb
 
         // 候选栏高度改为基于键盘高度计算，统一使用 0.1 比例
         val candidatesHeightRatio = 0.1f
-        heightForcomposing = (skbHeight * candidatesHeightRatio *
-                AppPrefs.getInstance().keyboardSetting.candidateTextSize.getValue() / 100f).toInt()
+        heightForcomposing = (skbHeight * candidatesHeightRatio * candidateScale).toInt()
         heightForCandidates = (heightForcomposing * 1.9).toInt()
         heightForCandidatesArea = (heightForcomposing * 2.9).toInt()
         composingTextSize = DevicesUtils.px2sp (heightForcomposing)
@@ -134,6 +150,17 @@ class EnvironmentSingleton private constructor() {
         get() = (instance.inputAreaWidth - instance.skbWidth)/2
 
     companion object {
+        /**
+         * 各显示状态的默认键盘高度占比。
+         * 键盘里「重置高度」用它恢复，避免旧代码那样一律写 0.3（副屏全屏只有 30% 太矮）。
+         */
+        fun defaultHeightRatio(state: DisplayState): Float = when (state) {
+            DisplayState.PrimaryPortrait -> 0.45f
+            DisplayState.SecondaryPortrait -> 0.5f
+            DisplayState.SecondaryLandscape -> 0.5f
+            DisplayState.SecondaryFullscreen -> 0.7f
+        }
+
         private var mInstance: EnvironmentSingleton? = null
         @JvmStatic
         val instance: EnvironmentSingleton
