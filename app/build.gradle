@@ -83,7 +83,8 @@ android {
             // 混淆
             minifyEnabled false
             shrinkResources false
-            applicationIdSuffix  ".release"
+            // 正式包直接用官方包名（com.yuyan.pinyin.online），这样才能覆盖原版安装
+            // 原来这里有个 ".release" 后缀，装出来是 com.yuyan.pinyin.online.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard.cfg'
             if (keystorePropsFile.exists()) {
                 signingConfig signingConfigs.release

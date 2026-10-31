@@ -10,8 +10,8 @@
 # Java class files
 *.class
 
-# Generated files
-build/
+# Generated files（只忽略 app 根目录的 build，别把 assets/rime/build 一起吃掉）
+/build/
 generated/
 
 # Local configuration file (sdk path, etc)
@@ -72,8 +72,9 @@ tmp/
 captures/
 .gradle/
 
-# Ignore Rime build files
-src/main/assets/rime/build/
+# Rime 的 build/ 是预编译词库（table.bin / prism.bin），必须入库
+!src/main/assets/rime/build/
+!src/main/assets/rime/build/**
 
 # Ignore local keystore properties
 ../keystore/keystore.properties

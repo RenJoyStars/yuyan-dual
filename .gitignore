@@ -707,3 +707,9 @@ config.local
 *.swp
 *.swo
 *~
+
+# 词库资源必须入库（上面的 *.yaml / *.txt / *.bin / *.json 是给构建产物用的，
+# 别把 assets/rime 一起吃掉，否则 clone 下来编出来的安装包没有词库、完全打不出中文）
+!app/src/main/assets/rime/**
+!app/src/main/assets/hw/**
+!app/src/main/assets/pinyindb/**

@@ -15,7 +15,8 @@ object CustomConstant {
     const val SCHEMA_ZH_DOUBLE_FLYPY = "double_pinyin_" // 小鹤双拼
     const val SCHEMA_ZH_DOUBLE_LX17 = "double_pinyin_ls17" // 乱序17双拼
     const val SCHEMA_ZH_STROKE = "stroke" // 五笔画
-    const val CURRENT_RIME_DICT_DATA_VERSIOM = 20251018
+    // 词库版本：改动 assets/rime 后要加一，启动时才会把新词库覆盖到数据目录
+    const val CURRENT_RIME_DICT_DATA_VERSIOM = 20251031
     const val YUYAN_IME_REPO = "https://github.com/Maditer/YuyanDual"
     const val LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
     const val FEEDBACK_TXC_REPO = "https://github.com/gurecn/YuyanIme/issues"
