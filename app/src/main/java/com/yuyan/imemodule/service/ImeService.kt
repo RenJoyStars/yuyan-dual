@@ -33,6 +33,7 @@ import kotlinx.coroutines.*
 import com.yuyan.imemodule.data.theme.ThemeManager.OnThemeChangeListener
 import com.yuyan.imemodule.prefs.AppPrefs.Companion.getInstance
 import android.content.Context
+import android.widget.Toast
 
 class ImeService : InputMethodService() {
     private var isWindowShown = false // 键盘窗口是否已显示
@@ -46,11 +47,44 @@ class ImeService : InputMethodService() {
     private var lastDisplayState: EnvironmentSingleton.DisplayState? = null
     
     // 需要「键盘和输入框在同一块屏幕」的应用。
-    // 双屏逻辑默认是「主屏横屏 → 键盘去副屏」，这在游戏/模拟器上很合适，
-    // 但远程桌面类应用（UU远程）里，键盘跑到另一块屏 = 用户看到「点了没键盘」。
-    private val sameScreenPackages = setOf(
-        "com.netease.uuremote"      // 网易 UU 远程
-    )
+    // 双屏逻辑默认是「主屏横屏 → 键盘去副屏」。原先把 UU 远程 放进这个集合，
+    // 是为了修「点了没键盘」，但实测那并不是屏选错了 —— 是这个输入法在
+    // 横屏全屏应用里窗口根本没出来（切 Gboard 就正常）。
+    // 现在按用户要求把远程桌面类应用放回「送副屏」的默认路径，
+    // 主屏留给远程画面，键盘落到 Thor 下半屏。
+    private val sameScreenPackages = emptySet<String>()
+
+    // ── 临时诊断（排查完删除）────────────────────────────────────────
+    // 目的：当输入法窗口「该出现却完全没出现」时，事后用 Toast 把流程写到哪一步抖出来。
+    // Toast 是系统窗口，不受 IME 窗口可见性影响，所以键盘不出来它也照样能显示。
+    // 只在「失败」时才弹，正常使用完全无感，也不用提前知道是哪个包名。
+    private val diagHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var diagRunnable: Runnable? = null
+    private val diagSteps = ArrayList<String>()
+
+    private fun diag(msg: String) {
+        Log.e(logTag, "DIAG $msg")
+        diagSteps.add(msg)
+        if (diagSteps.size > 6) diagSteps.removeAt(0)
+    }
+
+    private fun diagStart() {
+        diagSteps.clear()
+        diagRunnable?.let { diagHandler.removeCallbacks(it) }
+        val r = Runnable {
+            val visible = isWindowShown || secondaryPresentation?.isShowing == true
+            if (!visible) {
+                val text = "输入法没显示：" + diagSteps.joinToString("；")
+                Log.e(logTag, "DIAG FAIL $text")
+                try {
+                    Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+                } catch (_: Throwable) {
+                }
+            }
+        }
+        diagRunnable = r
+        diagHandler.postDelayed(r, 1500)
+    }
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {
@@ -145,9 +179,15 @@ class ImeService : InputMethodService() {
         val second = displays?.firstOrNull { it.displayId != selfDisplayId }
             ?: displays?.firstOrNull()
         // Log.d(logTag, "tryShowSecondary: displays=${displays?.size ?: 0} second=${second}") // 调试标签已隐藏
-        if (second == null) return false
+        if (second == null) {
+            diag("副屏：没有可用的 Presentation 屏幕")
+            return false
+        }
         // 屏没亮（合盖/单屏模式）就别把键盘往副屏送，否则等于没有键盘
-        if (second.state == android.view.Display.STATE_OFF) return false
+        if (second.state == android.view.Display.STATE_OFF) {
+            diag("副屏：屏幕处于熄屏状态 id=${second.displayId}")
+            return false
+        }
 
         // 若已经在同一副屏显示，则避免重复 show，仅刷新输入视图
         val alreadyShowingSame = secondaryPresentation?.isShowing == true &&
@@ -174,6 +214,7 @@ class ImeService : InputMethodService() {
             return true
         } catch (t: Throwable) {
             Log.e(logTag, "tryShowSecondary: failed", t)
+            diag("副屏创建失败 ${t.javaClass.simpleName}: ${t.message}")
             secondaryPresentation = null
             secondaryInputView = null
             return false
@@ -225,6 +266,8 @@ class ImeService : InputMethodService() {
         val shouldUsePresentation = !forceSameScreen &&
                 inferredState == EnvironmentSingleton.DisplayState.SecondaryFullscreen
         Log.d(logTag, "pkg=$editorPkg state=$inferredState sameScreen=$forceSameScreen secondary=$hasSecondaryDisplay")
+        diagStart()
+        diag("1/3 收到输入 ${widthPx}x$heightPx 副屏=$hasSecondaryDisplay 状态=$inferredState 送副屏=$shouldUsePresentation")
 
         // 已经在同一块副屏上显示、且显示状态没变 → 直接复用，不要再 dismiss + 重建。
         // 原来每次都先关再开，切个输入框就闪一下，而且重建期间候选词、布局状态会丢。
@@ -238,6 +281,7 @@ class ImeService : InputMethodService() {
         } else {
             false
         }
+        diag("2/3 副屏窗口=${if (shownOnSecondary) "已显示" else "未显示"}")
 
         // 该送副屏但没送成（副屏被占用 / 熄屏 / 创建失败）：状态退回本屏，
         // 否则会按「全屏 70%」的比例把键盘铺在主屏上，一开键盘就遮掉大半个屏幕。
@@ -257,6 +301,9 @@ class ImeService : InputMethodService() {
             setInputView(mInputView)
             // Log.d(logTag, "setInputView normal with ${mInputView.javaClass.simpleName}") // 调试标签已隐藏
             mInputView.onStartInputView(editorInfo, restarting)
+            diag("3/3 已装载主屏键盘 键高=${EnvironmentSingleton.instance.skbHeight}")
+        } else {
+            diag("3/3 已交给副屏")
         }
 
         // 根据当前实际显示设备刷新环境尺寸与显示状态
@@ -301,6 +348,17 @@ class ImeService : InputMethodService() {
         return super.onShowInputRequested(flags, configChange)
     }
 
+    /**
+     * 永远不进「全屏编辑（extract）模式」。
+     *
+     * 横屏应用（远程桌面、游戏）默认会触发 InputMethodService 的全屏模式：
+     * 框架会把我们的输入视图塞进它自带的 extract 布局里，外面套一个全屏编辑框，
+     * 尺寸和 insets 全按那套布局算 —— 结果是键盘窗口要么被撑到整屏，
+     * 要么因为 insets 算错而整块不可见（Gboard 自己处理了这种情况，所以它正常）。
+     * 我们本来就有候选栏和自绘键盘，不需要系统那层全屏编辑界面，直接关掉。
+     */
+    override fun onEvaluateFullscreenMode(): Boolean = false
+
     override fun onBindInput() {
         super.onBindInput()
     }
@@ -308,6 +366,7 @@ class ImeService : InputMethodService() {
     override fun onWindowShown() {
         super.onWindowShown()
         isWindowShown = true
+        diag("4/4 输入法窗口已显示")
         getActiveInputView()?.onWindowShown()
     }
 
@@ -331,6 +390,7 @@ class ImeService : InputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        diagRunnable?.let { diagHandler.removeCallbacks(it) }   // 会话结束就别再弹诊断了
         getActiveInputView()?.resetToIdleState()
         dismissSecondary()
     }
