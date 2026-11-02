@@ -1,5 +1,10 @@
 # 语燕输入法双屏版（RenJoy 维护版）
 
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/RenJoyStars/yuyan-dual)](https://github.com/RenJoyStars/yuyan-dual/releases)
+![Platform](https://img.shields.io/badge/Android-8.0%2B%20%C2%B7%20arm64-green)
+![Size](https://img.shields.io/badge/APK-47MB-lightgrey)
+
 本项目是 [语燕双屏版](https://github.com/Maditer/YuyanDual) 的衍生维护版本，面向 **AYN Thor 这类双屏安卓掌机**。
 在原版基础上做了这些改动：
 
@@ -9,6 +14,38 @@
   主副屏输入视图重新绑定（副屏用完回主屏不再失灵）、切输入框不再闪、副屏旋转后自动重排
 - **补回 Rime 词库与预编译方案**：原仓库 `.gitignore` 把 `*.yaml/*.bin/*.txt` 全忽略了，
   直接 clone 编出来的包**一个字也打不出来**，这里已补全
+
+## 下载安装
+
+到 [Releases](https://github.com/RenJoyStars/yuyan-dual/releases/latest) 下载最新版
+（**v0.3.1**，arm64-v8a，约 47MB）。
+
+1. 安装 APK
+2. 「设置 → 系统 → 语言和输入法」中启用「语燕输入法」并设为默认
+3. 首次打开应用会复制词库（约 65MB，等十几秒）
+
+> ⚠️ 包名是 `com.yuyan.pinyin.online.release`，与官方版**不同，不能覆盖安装**。
+> 已装官方版请先卸载（卸载会清掉个人习惯记录，词库在安装包里不受影响）。
+
+## 界面一览
+
+| 九键拼音 | 全键拼音 |
+|---|---|
+| ![九键](images/t9_pinyin.jpg) | ![全键](images/qwerty_pinyin.jpg) |
+
+| 双拼 | 手写 |
+|---|---|
+| ![双拼](images/double_pinyin.jpg) | ![手写](images/writing_pinyin.jpg) |
+
+| 表情 | 悬浮键盘 |
+|---|---|
+| ![表情](images/emoji.jpg) | ![悬浮](images/float.jpg) |
+
+| 单手模式 | 深色主题 |
+|---|---|
+| ![单手](images/onehand.jpg) | ![深色](images/dark.jpg) |
+
+<sub>截图为上游版本的界面，本版除「发送键改为胶囊形」「移除语音输入」外基本一致。</sub>
 
 ## 协议与来源
 
@@ -22,10 +59,12 @@
 1. [语燕双屏版](https://github.com/Maditer/YuyanDual)以[语燕输入法](https://github.com/gurecn/YuyanIme)为基础，增加了对双屏安卓设备（目前只有 AYN Thor）的支持，并对一些功能做了个性化调整
 2. 如果使用当中遇到问题，欢迎提交反馈，但我不保证能解决所有问题，因为我一行代码也不会写，全是 AI 写的 ^_^
 3. 对项目感兴趣的大佬欢迎自取源码并进行优化
+
 ### 项目参考与鸣谢
 1. [语燕输入法](https://github.com/gurecn/YuyanIme)
 2. [Rime引擎](https://github.com/rime/librime)
 3. [sherpa-ncnn](https://github.com/k2-fsa/sherpa-ncnn)
+
 ## 构建安装包
 
 ```sh
@@ -50,7 +89,7 @@
 
 ---
 
-# 更新日志
+## 更新日志
 
 ## 0.3（私有维护版）
 ### 移除
