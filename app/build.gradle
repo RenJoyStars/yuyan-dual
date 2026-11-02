@@ -83,8 +83,11 @@ android {
             // 混淆
             minifyEnabled false
             shrinkResources false
-            // 正式包直接用官方包名（com.yuyan.pinyin.online），这样才能覆盖原版安装
-            // 原来这里有个 ".release" 后缀，装出来是 com.yuyan.pinyin.online.release
+            // ⚠️ 这个后缀不能去掉：libyuyanime.so 里硬编码了包名白名单
+            //    com.yuyan.pinyin.online.release / .debug / offline.release / offline.debug
+            //    换成白名单外的包名，Rime 引擎会在 startupRime() 里静默拒绝初始化，
+            //    表现就是键盘能弹出但中英文都打不出字。
+            applicationIdSuffix  ".release"
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard.cfg'
             if (keystorePropsFile.exists()) {
                 signingConfig signingConfigs.release
