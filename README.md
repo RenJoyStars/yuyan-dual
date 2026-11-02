@@ -26,6 +26,30 @@
 1. [语燕输入法](https://github.com/gurecn/YuyanIme)
 2. [Rime引擎](https://github.com/rime/librime)
 3. [sherpa-ncnn](https://github.com/k2-fsa/sherpa-ncnn)
+## 构建安装包
+
+```sh
+./gradlew :app:assembleDualscreenRelease
+```
+
+- **包名**：`com.yuyan.pinyin.online.release`（**不能改成 `com.yuyan.pinyin.online`**）
+- **签名**：`keystore/keystore.properties` + `keystore/yuyan-release.jks`（都在 `.gitignore` 里，丢了就发不出升级包，务必单独备份）
+
+> ⚠️ **包名白名单（踩过的坑）**
+> `libyuyanime.so` 里硬编码了可用包名：`com.yuyan.pinyin.online.release` /
+> `com.yuyan.pinyin.online.debug` / `com.yuyan.pinyin.offline.release` / `com.yuyan.pinyin.offline.debug`。
+> 改成白名单以外的包名（例如为了覆盖官方版而用 `com.yuyan.pinyin.online`），Rime 引擎会在
+> `startupRime()` 里**静默拒绝初始化**：键盘能弹出、按键有动画，但中英文都上不了屏、候选栏永远空，
+> logcat 里连 `rime.yuyan` 日志都没有。这是闭源 SDK 的授权校验，不是 bug。
+
+### 词库
+
+`app/src/main/assets/rime/build/` 是预编译的 Rime 方案与词库（`pinyin.table.bin` 65MB 为词条表、
+`t9_pinyin.prism.bin` 为九键音节索引）。这套文件上游仓库里没有（被 `.gitignore` 漏掉），
+缺失时编出来的包完全打不出中文。换成熟词库需要用 librime 重新编译 table + 重建九键 prism。
+
+---
+
 # 更新日志
 
 ## 0.3（私有维护版）
