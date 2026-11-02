@@ -1,4 +1,24 @@
-# 语燕输入法双屏版
+# 语燕输入法双屏版（RenJoy 维护版）
+
+本项目是 [语燕双屏版](https://github.com/Maditer/YuyanDual) 的衍生维护版本，面向 **AYN Thor 这类双屏安卓掌机**。
+在原版基础上做了这些改动：
+
+- **移除离线语音输入**（sherpa-ncnn）：连录音权限、权限请求页、语音设置页一并去掉，安装包从 135MB 降到 47MB
+- **修复 UU远程里点输入框不弹键盘**：远程桌面类应用强制「键盘与输入框同屏」
+- **双屏界面整理**：发送键改成胶囊形（不再被拉成椭圆）、键盘高度按屏幕实际高度计算、
+  主副屏输入视图重新绑定（副屏用完回主屏不再失灵）、切输入框不再闪、副屏旋转后自动重排
+- **补回 Rime 词库与预编译方案**：原仓库 `.gitignore` 把 `*.yaml/*.bin/*.txt` 全忽略了，
+  直接 clone 编出来的包**一个字也打不出来**，这里已补全
+
+## 协议与来源
+
+- 本仓库遵循 **GPL-3.0**（见 [LICENSE](LICENSE)），与上游一致；分发或修改同样需以 GPL-3.0 开源
+- 上游链路：[Maditer/YuyanDual](https://github.com/Maditer/YuyanDual) → [gurecn/YuyanIme](https://github.com/gurecn/YuyanIme) → [Rime / librime](https://github.com/rime/librime)
+- `app/src/main/assets/rime/` 下的词库与预编译方案取自原作者发布的安装包，随本项目以 GPL-3.0 一并分发
+- 输入法内核（`libyuyanime.so` 等）与手写模型版权归原作者，本仓库仅做界面与行为层面的修改
+
+### 原作者说明（保留）
+
 1. [语燕双屏版](https://github.com/Maditer/YuyanDual)以[语燕输入法](https://github.com/gurecn/YuyanIme)为基础，增加了对双屏安卓设备（目前只有 AYN Thor）的支持，并对一些功能做了个性化调整
 2. 如果使用当中遇到问题，欢迎提交反馈，但我不保证能解决所有问题，因为我一行代码也不会写，全是 AI 写的 ^_^
 3. 对项目感兴趣的大佬欢迎自取源码并进行优化
