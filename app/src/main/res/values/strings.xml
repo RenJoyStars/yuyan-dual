@@ -226,6 +226,7 @@
     <!-- 新增：双屏设置 -->
     <string name="setting_dual_screen">双屏</string>
     <string name="dual_force_fullscreen_primary">主屏激活时强制全屏</string>
+    <string name="dual_force_fullscreen_primary_tips">开启后，主屏上的全屏应用激活时，把整块副屏交给键盘（键盘铺满下屏）。关掉则键盘只占下屏底部一条，其余露出桌面。</string>
 
     <!-- 语音识别设置 -->
     <string name="voice_input_enabled">启用语音输入</string>

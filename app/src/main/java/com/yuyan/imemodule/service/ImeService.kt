@@ -260,7 +260,13 @@ class ImeService : InputMethodService() {
                 EnvironmentSingleton.DisplayState.SecondaryPortrait
         }
         EnvironmentSingleton.instance.currentDisplayState = inferredState
-        EnvironmentSingleton.instance.forceFullOnSecondary = inferredState == EnvironmentSingleton.DisplayState.SecondaryFullscreen
+        // 「主屏激活时强制全屏」这个开关以前是个摆设：设置页能拨，但这里直接按状态写死，
+        // 从来没人读它（只有「重置设置」会把它写回 true）。现在真正接上：
+        // 关掉后副屏窗口只占键盘高度那一条，不再铺满整块下屏。
+        EnvironmentSingleton.instance.forceFullOnSecondary =
+                inferredState == EnvironmentSingleton.DisplayState.SecondaryFullscreen &&
+                com.yuyan.imemodule.prefs.AppPrefs.getInstance()
+                    .dualScreen.dualForceFullscreenPrimary.getValue()
 
         val forceSameScreen = editorPkg != null && sameScreenPackages.contains(editorPkg)
         val shouldUsePresentation = !forceSameScreen &&

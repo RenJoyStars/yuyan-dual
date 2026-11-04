@@ -211,7 +211,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val dualForceFullscreenPrimary = switch(
             R.string.dual_force_fullscreen_primary,
             "dual_force_fullscreen_primary",
-            true
+            true,
+            R.string.dual_force_fullscreen_primary_tips
         )
     }
 
