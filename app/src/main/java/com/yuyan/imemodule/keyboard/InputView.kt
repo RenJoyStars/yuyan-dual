@@ -482,6 +482,20 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 updateCandidate()
             }
             return true
+        } else if (InputModeSwitcherManager.isNumberSkb &&
+                   keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9) {
+            // 纯数字键盘（九宫格数字盘）：数字必须直接上屏。
+            // 原来它和拼音键走同一条路（DecodingInfo.inputAction），而九键方案里
+            // 1–9 是编码而不是字符 —— 结果按下去只出候选词、数字一个也上不了屏。
+            // 用 keyCode 换算字符（而不是 event.unicodeChar）：这里的 KeyEvent 是
+            // 手工构造的，不保证带 unicodeChar。
+            val digit = (keyCode - KeyEvent.KEYCODE_0).toString()
+            if (!DecodingInfo.isCandidatesListEmpty && !DecodingInfo.isAssociate) {
+                chooseAndUpdate()
+            }
+            commitText(digit)
+            if (mImeState != ImeState.STATE_IDLE) resetToIdleState()
+            return true
         } else if ((Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON){
             DecodingInfo.inputAction(event)
             updateCandidate()

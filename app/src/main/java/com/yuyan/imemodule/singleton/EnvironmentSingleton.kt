@@ -85,8 +85,14 @@ class EnvironmentSingleton private constructor() {
             DisplayState.SecondaryLandscape -> prefsInternal.heightRatioSecondaryLandscape.getValue()
             DisplayState.SecondaryFullscreen -> prefsInternal.heightRatioSecondaryFullscreen.getValue()
         }
-        // 历史数据里可能存了 0 / 负数（旧版「重置」会写 0.3，拖到边界还可能越界），回落到默认值
-        val ratio = if (configured in 0.2f..0.9f) configured else defaultHeightRatio(currentDisplayState)
+        // 历史数据里可能存了 0 / 负数（旧版「重置」会写 0.3，拖到边界还可能越界），回落到默认值。
+        // 副屏（下屏）允许到 1.0 —— 就是「铺满整块下屏」；主屏仍限制在 0.9 以内，别把应用遮没。
+        val isSecondaryDisplay = currentDisplayState != DisplayState.PrimaryPortrait
+        // 旧版副屏全屏的默认值是 0.7，等于「没调过」。直接沿用会让老用户永远差一截，
+        // 所以把恰好等于旧默认值的当成未设置，迁移到新默认（1.0 铺满）。
+        val migrated = if (isSecondaryDisplay && configured == 0.7f) 1.0f else configured
+        val validRange = if (isSecondaryDisplay) 0.4f..1.0f else 0.2f..0.9f
+        val ratio = if (migrated in validRange) migrated else defaultHeightRatio(currentDisplayState)
         keyboardHeightRatio = ratio
 
         // 高度基数 = 屏幕实际高度。
@@ -94,24 +100,36 @@ class EnvironmentSingleton private constructor() {
         // 0.5 的比例直接得到 960px（占屏幕 89%），0.7 更是 1344px —— 比屏幕还高、顶部被裁。
         // 比例就是「占屏幕高度的几分之几」，这样横竖屏语义才一致，拖动也不会出现
         // 「拉到某个高度之后怎么拖都不动」的死区。
-        var skb = (mScreenHeight * ratio).toInt()
         val minSkb = (96 * dm.density).toInt()
-        if (skb < minSkb) skb = minSkb
 
-        // 候选栏高度约占键盘高度的 29%（原公式 0.1×2.9，随候选字号缩放），
-        // 两者相加不能顶穿屏幕，否则键盘顶部会被裁掉一截。
-        // 兜底：即使比例配得很大，也不让键盘顶穿屏幕。
+        // 候选栏高度约占键盘高度的 29%（原公式 0.1×2.9，随候选字号缩放）
         val candidateScale = AppPrefs.getInstance().keyboardSetting.candidateTextSize.getValue() / 100f
         val candidateFactor = 0.1f * 2.9f * candidateScale
-        val maxSkb = (mScreenHeight * 0.96f / (1f + candidateFactor)).toInt()
-        if (skb > maxSkb) skb = maxSkb.coerceAtLeast(minSkb)
-        skbHeight = skb
 
-        // 候选栏高度改为基于键盘高度计算，统一使用 0.1 比例
-        val candidatesHeightRatio = 0.1f
-        heightForcomposing = (skbHeight * candidatesHeightRatio * candidateScale).toInt()
-        heightForCandidates = (heightForcomposing * 1.9).toInt()
-        heightForCandidatesArea = (heightForcomposing * 2.9).toInt()
+        if (isSecondaryDisplay) {
+            // 副屏：ratio 表示「整个输入法窗口占下屏高度的几分之几」。
+            // 候选栏从这块高度里**扣**，而不是加在键盘上方 ——
+            // 旧实现是 skb = 屏高×ratio、候选栏再额外加 29%，两者相加必然超过屏幕，
+            // 于是只好把 skb 压到 74% 左右，怎么拖都铺不满。
+            // 现在 ratio = 1.0 时，键盘 + 候选栏正好等于整块下屏。
+            val total = (mScreenHeight * ratio).toInt().coerceAtLeast(minSkb)
+            val candArea = (total * candidateFactor / (1f + candidateFactor)).toInt()
+            skbHeight = (total - candArea).coerceAtLeast(minSkb)
+            heightForCandidatesArea = (total - skbHeight).coerceAtLeast(0)
+            heightForcomposing = (heightForCandidatesArea / 2.9f).toInt()
+            heightForCandidates = (heightForcomposing * 1.9).toInt()
+        } else {
+            // 主屏：键盘只占屏幕下部一块，候选栏叠在应用区域上方，沿用原公式
+            var skb = (mScreenHeight * ratio).toInt()
+            if (skb < minSkb) skb = minSkb
+            // 兜底：即使比例配得很大，也不让键盘顶穿屏幕
+            val maxSkb = (mScreenHeight * 0.96f / (1f + candidateFactor)).toInt()
+            if (skb > maxSkb) skb = maxSkb.coerceAtLeast(minSkb)
+            skbHeight = skb
+            heightForcomposing = (skbHeight * 0.1f * candidateScale).toInt()
+            heightForCandidates = (heightForcomposing * 1.9).toInt()
+            heightForCandidatesArea = (heightForcomposing * 2.9).toInt()
+        }
         composingTextSize = DevicesUtils.px2sp (heightForcomposing)
         candidateTextSize = DevicesUtils.px2sp (heightForCandidates)
         heightForFullDisplayBar = 0
@@ -156,9 +174,10 @@ class EnvironmentSingleton private constructor() {
          */
         fun defaultHeightRatio(state: DisplayState): Float = when (state) {
             DisplayState.PrimaryPortrait -> 0.45f
-            DisplayState.SecondaryPortrait -> 0.5f
-            DisplayState.SecondaryLandscape -> 0.5f
-            DisplayState.SecondaryFullscreen -> 0.7f
+            DisplayState.SecondaryPortrait -> 0.7f
+            DisplayState.SecondaryLandscape -> 0.8f
+            // 副屏全屏：整块下屏都给键盘，默认就铺满
+            DisplayState.SecondaryFullscreen -> 1.0f
         }
 
         private var mInstance: EnvironmentSingleton? = null

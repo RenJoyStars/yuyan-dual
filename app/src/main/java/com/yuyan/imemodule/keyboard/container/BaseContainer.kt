@@ -117,10 +117,16 @@ open class BaseContainer(@JvmField var mContext: Context, inputView: InputView) 
                 val y = event.y
                 if (!isHandling && abs((y - lastY[0]).toDouble()) > dp(10)) {
                     isHandling = true
-                    // 比例限制在 0.25–0.85：拖到 0 以下会让键盘高度变负（MeasureSpec 直接崩），
-                    // 拖太高则会把候选栏顶出屏幕。夹住之后怎么拖都不会变形。
+                    // 比例限制：拖到 0 以下会让键盘高度变负（MeasureSpec 直接崩），
+                    // 拖太高则会把候选栏顶出屏幕。
+                    // 下屏（副屏）允许拖到 1.0 —— 也就是铺满整块下屏，这是双屏掌机的常见用法；
+                    // 主屏仍限制在 0.9 以内，免得把应用遮没。
+                    val isSecondary = EnvironmentSingleton.instance.currentDisplayState !=
+                            EnvironmentSingleton.DisplayState.PrimaryPortrait
+                    val lo = if (isSecondary) 0.4f else 0.2f
+                    val hi = if (isSecondary) 1.0f else 0.9f
                     val next = (EnvironmentSingleton.instance.keyBoardHeightRatio +
-                            if (y < lastY[0]) 0.01f else -0.01f).coerceIn(0.25f, 0.85f)
+                            if (y < lastY[0]) 0.01f else -0.01f).coerceIn(lo, hi)
                     lastY[0] = y
                     EnvironmentSingleton.instance.keyBoardHeightRatio = next
                     // 不用再手动 setLayoutParams：容器的 onMeasure 按 skbHeight 量，
