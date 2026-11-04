@@ -423,23 +423,37 @@ class ImeService : InputMethodService() {
             sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
             return
         }
-        if ((info.inputType and android.text.InputType.TYPE_MASK_CLASS) == android.text.InputType.TYPE_NULL
-            || info.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)) {
-            val t = SystemClock.uptimeMillis()
-            sendDownKeyEvent(t, KeyEvent.KEYCODE_ENTER)
-            sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
-        } else if (!info.actionLabel.isNullOrEmpty() && info.actionId != EditorInfo.IME_ACTION_UNSPECIFIED) {
+
+        // 回车键到底该「发送」还是「换行」，按下面的顺序判断 ——
+        // 顺序很关键，旧代码把 IME_FLAG_NO_ENTER_ACTION 放在最前面，
+        // 结果聊天类应用只要带了这个标志（多行输入框几乎都带），
+        // 声明的 IME_ACTION_SEND 就被无视，退化成发一个原始回车 = 换行。
+        // 表现就是「在微信/WorkBuddy 里按回车不发送，只多了一行」。
+
+        // ① 应用自定义了动作名（actionLabel + actionId）→ 按它的来
+        if (!info.actionLabel.isNullOrEmpty() && info.actionId != EditorInfo.IME_ACTION_UNSPECIFIED) {
             ic.performEditorAction(info.actionId)
-        } else {
-            when (val action = info.imeOptions and EditorInfo.IME_MASK_ACTION) {
-                EditorInfo.IME_ACTION_UNSPECIFIED, EditorInfo.IME_ACTION_NONE -> {
-                    val t = SystemClock.uptimeMillis()
-                    sendDownKeyEvent(t, KeyEvent.KEYCODE_ENTER)
-                    sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
-                }
-                else -> ic.performEditorAction(action)
+            return
+        }
+
+        // ② imeOptions 里有明确动作（发送 / 前往 / 搜索 / 完成 / 下一项）→ 执行动作
+        when (val action = info.imeOptions and EditorInfo.IME_MASK_ACTION) {
+            EditorInfo.IME_ACTION_SEND,
+            EditorInfo.IME_ACTION_GO,
+            EditorInfo.IME_ACTION_SEARCH,
+            EditorInfo.IME_ACTION_DONE,
+            EditorInfo.IME_ACTION_NEXT,
+            EditorInfo.IME_ACTION_PREVIOUS -> {
+                ic.performEditorAction(action)
+                return
             }
         }
+
+        // ③ 其余一律当换行：普通多行输入框、未声明动作的文本框，
+        //    以及 inputType 为 TYPE_NULL（不支持编辑）的情况。
+        val t = SystemClock.uptimeMillis()
+        sendDownKeyEvent(t, KeyEvent.KEYCODE_ENTER)
+        sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
     }
 
     private fun sendDownKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0){
