@@ -672,6 +672,14 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         updateCandidateBar()
     }
 
+    // ── 手势编辑代理 ────────────────────────────────────────────────
+    // BaseKeyboardView 只持有 InputView，拿不到 ImeService 的输入连接，
+    // 所以这里做一层转发。
+    fun clearAllTextByGesture() { service.clearAllTextBeforeCursor() }
+    fun restoreClearedTextByGesture() { service.restoreClearedText() }
+    fun moveCursorByGesture(delta: Int) { service.moveCursorBy(delta) }
+    fun sendNewlineByGesture() { service.sendNewlineKeyEvent() }
+
     fun requestHideSelf() {
         // 同步请求系统收起，并确保副屏窗口被关闭
         service.forceHideKeyboard()

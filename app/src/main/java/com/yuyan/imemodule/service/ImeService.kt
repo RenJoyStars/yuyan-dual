@@ -462,6 +462,50 @@ class ImeService : InputMethodService() {
         sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
     }
 
+    // ── 手势编辑（对齐微信输入法的删除键手势）──────────────────────
+    /** 上一次「上滑清空」删掉的内容，供「下滑」恢复用 */
+    private var clearedBuffer: CharSequence? = null
+
+    /**
+     * 长按删除键后向上滑：一次清空光标前的全部文字。
+     * 删之前把内容留一份，误触可以下滑撤回。
+     */
+    fun clearAllTextBeforeCursor() {
+        val ic = currentInputConnection ?: return
+        val before = try { ic.getTextBeforeCursor(100000, 0) } catch (_: Throwable) { null }
+        if (before.isNullOrEmpty()) return
+        clearedBuffer = before
+        ic.deleteSurroundingText(before.length, 0)
+    }
+
+    /** 长按删除键后向下滑：把刚才清空的内容放回去 */
+    fun restoreClearedText() {
+        val buf = clearedBuffer ?: return
+        currentInputConnection?.commitText(buf, 1)
+        clearedBuffer = null
+    }
+
+    /**
+     * 空格键左右滑动：按字符移动光标。
+     * 用 getExtractedText 拿当前选区（onUpdateSelection 的缓存不一定及时），
+     * 越界时夹到文本首尾。
+     */
+    fun moveCursorBy(delta: Int) {
+        val ic = currentInputConnection ?: return
+        val et = try { ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0) } catch (_: Throwable) { null }
+        val len = et?.text?.length ?: return
+        val cur = et.selectionStart.coerceAtLeast(0)
+        val target = (cur + delta).coerceIn(0, len)
+        ic.setSelection(target, target)
+    }
+
+    /** 长按回车键：只换行，不触发「发送」动作 */
+    fun sendNewlineKeyEvent() {
+        val t = SystemClock.uptimeMillis()
+        sendDownKeyEvent(t, KeyEvent.KEYCODE_ENTER)
+        sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
+    }
+
     private fun sendDownKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0){
         val event = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyEventCode, 0, metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0)
         val ic = currentInputConnection

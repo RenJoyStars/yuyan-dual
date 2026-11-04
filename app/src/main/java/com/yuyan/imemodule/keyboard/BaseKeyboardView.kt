@@ -40,6 +40,12 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     private val popupComponent: PopupComponent = get()
     protected var mSoftKeyboard: SoftKeyboard? = null
     private var mCurrentKey: SoftKey? = null
+
+    // ── 手势状态（对齐微信输入法）──
+    private var mDownKey: SoftKey? = null   // 按下时命中的键，手势全程以它为准
+    private var mDownX = 0f
+    private var mDownY = 0f
+    private var mSwipedAction = false       // 本次按下是否已经触发过滑动手势
     private var mGestureDetector: GestureDetector? = null
     private var mLongPressKey = false
     private var mAbortKey = false
@@ -183,6 +189,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
             MotionEvent.ACTION_DOWN -> {
                 mAbortKey = false
                 mLongPressKey = false
+                mDownKey = mCurrentKey
+                mDownX = me.x
+                mDownY = me.y
+                mSwipedAction = false
                 if(mCurrentKey != null){
                     Log.d(TAG, "ACTION_DOWN - key: ${mCurrentKey!!.getkeyLabel()}, code: ${mCurrentKey!!.code}")
                     if (mCurrentKey!!.repeatable()) {
@@ -197,14 +207,54 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                     Log.d(TAG, "ACTION_DOWN - no key detected")
                 }
             }
+            MotionEvent.ACTION_MOVE -> {
+                val key = mDownKey
+                if (key != null && !mSwipedAction) {
+                    val density = resources.displayMetrics.density
+                    val dy = me.y - mDownY
+                    val dx = me.x - mDownX
+                    when (key.code) {
+                        // 删除键：长按之后上滑 = 清空全部；下滑 = 撤回刚才的清空
+                        KeyEvent.KEYCODE_DEL -> {
+                            val threshold = 64 * density
+                            if (mLongPressKey) {
+                                if (dy < -threshold) {
+                                    removeMessages()
+                                    mService?.clearAllTextByGesture()
+                                    mSwipedAction = true
+                                } else if (dy > threshold) {
+                                    removeMessages()
+                                    mService?.restoreClearedTextByGesture()
+                                    mSwipedAction = true
+                                }
+                            }
+                        }
+                        // 空格键：左右滑动移光标，每滑过 8dp 走一个字符
+                        KeyEvent.KEYCODE_SPACE -> {
+                            val step = (8 * density).coerceAtLeast(1f)
+                            var moved = 0
+                            while (me.x - mDownX > step) { mDownX += step; moved++ }
+                            while (mDownX - me.x > step) { mDownX -= step; moved-- }
+                            if (moved != 0) {
+                                removeMessages()   // 别让长按的空格连发打断光标移动
+                                mService?.moveCursorByGesture(moved)
+                                mSwipedAction = true   // 松手时不要再补一个空格
+                            }
+                        }
+                    }
+                }
+            }
             MotionEvent.ACTION_UP -> {
                 Log.d(TAG, "ACTION_UP - mAbortKey: $mAbortKey, mLongPressKey: $mLongPressKey")
                 removeMessages()
-                if (!mAbortKey && !mLongPressKey && mCurrentKey != null) {
+                if (!mAbortKey && mLongPressKey && mDownKey?.code == KeyEvent.KEYCODE_ENTER && !mSwipedAction) {
+                    // 长按回车 = 只换行，不触发「发送」
+                    mService?.sendNewlineByGesture()
+                } else if (!mAbortKey && !mLongPressKey && !mSwipedAction && mCurrentKey != null) {
                     Log.d(TAG, "Triggering normal key press: ${mCurrentKey!!.getkeyLabel()}")
                     mService?.responseKeyEvent(mCurrentKey!!)
                 } else {
-                    Log.d(TAG, "Not triggering key press - abort: $mAbortKey, longPress: $mLongPressKey")
+                    Log.d(TAG, "Not triggering key press - abort: $mAbortKey, longPress: $mLongPressKey, swiped: $mSwipedAction")
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
