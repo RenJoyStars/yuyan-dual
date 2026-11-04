@@ -235,7 +235,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         if (keyboardSymbol && !TextUtils.isEmpty(keyLabelSmall)) {
             mPaint.color = textColor
             mPaint.setTypeface(Typeface.DEFAULT)
-            if(skbStyleMode == SkbStyleMode.Samsung)mPaint.alpha = 128
+            // 三星、微信风格的附注小字符比主字母淡一档（微信里是浅灰），
+            // 否则两行字同样黑，键面上会显得很挤。
+            if(skbStyleMode == SkbStyleMode.Samsung || skbStyleMode == SkbStyleMode.Wx) mPaint.alpha = 128
             mPaint.textSize = mNormalKeyTextSizeSmall.toFloat()
             val x = when(prefs.skbStyleMode.getValue()){
                 SkbStyleMode.Yuyan -> softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabelSmall)) / 2.0f

@@ -52,8 +52,11 @@ class KeyboardLoaderUtil private constructor() {
         val softKeyboard: SoftKeyboard?
         // 微信键盘的字母区上方固定有一排数字键，属于这个风格的组成部分，
         // 不跟随「字母上排数字」那个全局开关（否则切到微信风格还是少一行）。
-        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue() ||
-                skbStyleMode == SkbStyleMode.Wx
+        // 但九键（T9）那边微信是没有数字行的，只有全键盘带，所以这里限定了布局类型。
+        val wxQwertyNumberLine = skbStyleMode == SkbStyleMode.Wx &&
+                (skbValue == InputModeSwitcherManager.MASK_SKB_LAYOUT_QWERTY_PINYIN ||
+                        skbValue == InputModeSwitcherManager.MASK_SKB_LAYOUT_QWERTY_ABC)
+        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue() || wxQwertyNumberLine
         val rows: MutableList<List<SoftKey>> = LinkedList()
         if (numberLine) {
             val qwertyKeys = createNumberLineKeys(arrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 0))
