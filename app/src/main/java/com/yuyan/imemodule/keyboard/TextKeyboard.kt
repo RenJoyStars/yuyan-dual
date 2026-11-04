@@ -232,7 +232,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         val keyIcon = if(skbStyleMode == SkbStyleMode.Google && softKey.code == 62) null else softKey.keyIcon
         val weightHeigth = softKey.height() / 4f
         val textColor = mActiveTheme.keyTextColor
-        if (keyboardSymbol && !TextUtils.isEmpty(keyLabelSmall)) {
+        // 微信风格把 1–0 做成了第一排字母键的上标，必须显示，
+        // 不能受「附注符号」这个全局开关影响（否则数字又不见了）。
+        if ((keyboardSymbol || skbStyleMode == SkbStyleMode.Wx) && !TextUtils.isEmpty(keyLabelSmall)) {
             mPaint.color = textColor
             mPaint.setTypeface(Typeface.DEFAULT)
             // 三星、微信风格的附注小字符比主字母淡一档（微信里是浅灰），

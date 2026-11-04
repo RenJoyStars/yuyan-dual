@@ -50,13 +50,9 @@ class KeyboardLoaderUtil private constructor() {
         shiftToggleStates.add(ToggleState(5))
 
         val softKeyboard: SoftKeyboard?
-        // 微信键盘的字母区上方固定有一排数字键，属于这个风格的组成部分，
-        // 不跟随「字母上排数字」那个全局开关（否则切到微信风格还是少一行）。
-        // 但九键（T9）那边微信是没有数字行的，只有全键盘带，所以这里限定了布局类型。
-        val wxQwertyNumberLine = skbStyleMode == SkbStyleMode.Wx &&
-                (skbValue == InputModeSwitcherManager.MASK_SKB_LAYOUT_QWERTY_PINYIN ||
-                        skbValue == InputModeSwitcherManager.MASK_SKB_LAYOUT_QWERTY_ABC)
-        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue() || wxQwertyNumberLine
+        // 微信键盘的数字不是独立一行：1–0 是 QWERTY 第一排字母键的「上标」
+        // （见 applyWxNumberSuperscript），所以这里只跟全局开关走。
+        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue()
         val rows: MutableList<List<SoftKey>> = LinkedList()
         if (numberLine) {
             val qwertyKeys = createNumberLineKeys(arrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 0))
@@ -78,6 +74,7 @@ class KeyboardLoaderUtil private constructor() {
                     }
                 }
                 var qwertyKeys = createQwertyPYKeys(keys[0])
+                if (skbStyleMode == SkbStyleMode.Wx) applyWxNumberSuperscript(qwertyKeys)
                 keyBeans.addAll(qwertyKeys)
                 rows.add(keyBeans)
                 keyBeans = LinkedList()
@@ -150,6 +147,7 @@ class KeyboardLoaderUtil private constructor() {
                 var keyBeans: MutableList<SoftKey> = LinkedList()
                 val keys = KeyboardData.layoutQwertyEn[skbStyleMode]!!
                 var qwertyKeys = createQwertyKeys(keys[0])
+                if (skbStyleMode == SkbStyleMode.Wx) applyWxNumberSuperscript(qwertyKeys)
                 keyBeans.addAll(qwertyKeys)
                 rows.add(keyBeans)
                 keyBeans = LinkedList()
@@ -306,6 +304,17 @@ class KeyboardLoaderUtil private constructor() {
         softKeyboard = getSoftKeyboard(rows, numberLineSkb)
         mSoftKeyboardMap[skbValue] = softKeyboard
         return softKeyboard
+    }
+
+    /**
+     * 微信键盘的数字不是另起一行，而是 QWERTY 第一排字母键右上角的「上标」：
+     * 1 在 Q 上、2 在 W 上……0 在 P 上。顺序与这一排的 keycode 一一对应。
+     */
+    private fun applyWxNumberSuperscript(keys: Array<SoftKey>) {
+        val numbers = arrayOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        keys.forEachIndexed { index, key ->
+            if (index < numbers.size) key.labelSmall = numbers[index]
+        }
     }
 
     // 键盘最后一行（各键盘统一，数字键盘稍微不同）
