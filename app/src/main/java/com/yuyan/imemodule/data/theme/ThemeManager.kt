@@ -19,6 +19,8 @@ object ThemeManager {
         ThemePreset.MaterialDark,
         ThemePreset.PixelLight,
         ThemePreset.PixelDark,
+        ThemePreset.WxLight,
+        ThemePreset.WxDark,
         ThemePreset.NordLight,
         ThemePreset.NordDark,
         ThemePreset.CustomRed,

@@ -262,4 +262,40 @@ object ThemePreset {
         functionKeyBackgroundColor = 0x5affffff,
         functionKeyPressHighlightColor = 0x1f000000,
     )
+
+    // ── 微信输入法风格 ────────────────────────────────────────────────
+    // 特征：底色与候选栏同色（没有「键盘区」和「候选区」的分界感）、
+    // 字母键比底色亮一档、功能键再亮一档、回车用微信绿。
+    // 没有描边和渐变，靠明度差分区 —— 这是它看起来「干净」的原因。
+    val WxDark = Theme.Builtin(
+        name = "微信深色",
+        isDark = true,
+        keyboardResources = 0x0,
+        barColor = 0xff1b1b1b,
+        keyboardColor = 0xff1b1b1b,
+        keyBackgroundColor = 0xff2e2e2e,
+        keyTextColor = 0xffffffff,
+        accentKeyBackgroundColor = 0xff07c160,
+        accentKeyTextColor = 0xffffffff,
+        keyPressHighlightColor = 0x33ffffff,
+        popupBackgroundColor = 0xff3d3d3d,
+        functionKeyBackgroundColor = 0xff3d3d3d,
+        functionKeyPressHighlightColor = 0x26ffffff,
+    )
+
+    val WxLight = Theme.Builtin(
+        name = "微信浅色",
+        isDark = false,
+        keyboardResources = 0x0,
+        barColor = 0xfff7f7f7,
+        keyboardColor = 0xfff7f7f7,
+        keyBackgroundColor = 0xffffffff,
+        keyTextColor = 0xff1a1a1a,
+        accentKeyBackgroundColor = 0xff07c160,
+        accentKeyTextColor = 0xffffffff,
+        keyPressHighlightColor = 0x14000000,
+        popupBackgroundColor = 0xffffffff,
+        functionKeyBackgroundColor = 0xffe5e5e5,
+        functionKeyPressHighlightColor = 0x14000000,
+    )
 }
