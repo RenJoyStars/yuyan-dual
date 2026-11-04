@@ -92,7 +92,12 @@ class EnvironmentSingleton private constructor() {
         // 所以把恰好等于旧默认值的当成未设置，迁移到新默认（1.0 铺满）。
         val migrated = if (isSecondaryDisplay && configured == 0.7f) 1.0f else configured
         val validRange = if (isSecondaryDisplay) 0.4f..1.0f else 0.2f..0.9f
-        val ratio = if (migrated in validRange) migrated else defaultHeightRatio(currentDisplayState)
+        // 副屏「全屏」模式下，窗口本身是铺满整块下屏的（黑底 + 底部对齐），
+        // 内容却按比例算 —— 比例只要不到 1.0，顶上就会留出一条黑边。
+        // 用户要的是「整块下屏都是键盘」，所以全屏时直接按 100% 算，不让旧比例拖后腿。
+        val ratio = if (forceFullOnSecondary) 1.0f
+                    else if (migrated in validRange) migrated
+                    else defaultHeightRatio(currentDisplayState)
         keyboardHeightRatio = ratio
 
         // 高度基数 = 屏幕实际高度。

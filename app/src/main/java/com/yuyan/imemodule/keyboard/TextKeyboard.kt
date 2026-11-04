@@ -42,6 +42,13 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
     private val mFmi: FontMetricsInt
     private var isKeyBorder = false // 启用按键边框
     protected lateinit var mActiveTheme: Theme
+    private companion object {
+        /** 微信键盘那种「中等字重」：系统 sans-serif-medium，没有就用常规体兜底 */
+        val MEDIUM_TYPEFACE: Typeface by lazy {
+            Typeface.create("sans-serif-medium", Typeface.NORMAL) ?: Typeface.DEFAULT
+        }
+    }
+
     private var keyRadius = 0
     private var keyboardFontBold = false
     private var keyboardSymbol = false
@@ -254,7 +261,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             keyIcon.draw(canvas)
         } else if (!TextUtils.isEmpty(keyLabel)) { //Label位于中间
             mPaint.color = textColor
-            if(keyboardFontBold) mPaint.typeface = Typeface.DEFAULT_BOLD
+            // 微信键盘用的是 Medium 字重：比系统常规体粗一档，又不像 Bold 那样发闷。
+            // 默认走 Medium，用户勾了「字体加粗」再上 Bold。
+            mPaint.typeface = if (keyboardFontBold) Typeface.DEFAULT_BOLD else MEDIUM_TYPEFACE
             mPaint.textSize =  mNormalKeyTextSize.toFloat()
             val x = softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabel)) / 2.0f
             val fontHeight = mFmi.bottom - mFmi.top
