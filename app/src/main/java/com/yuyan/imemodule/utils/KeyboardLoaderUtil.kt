@@ -50,7 +50,10 @@ class KeyboardLoaderUtil private constructor() {
         shiftToggleStates.add(ToggleState(5))
 
         val softKeyboard: SoftKeyboard?
-        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue()
+        // 微信键盘的字母区上方固定有一排数字键，属于这个风格的组成部分，
+        // 不跟随「字母上排数字」那个全局开关（否则切到微信风格还是少一行）。
+        numberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue() ||
+                skbStyleMode == SkbStyleMode.Wx
         val rows: MutableList<List<SoftKey>> = LinkedList()
         if (numberLine) {
             val qwertyKeys = createNumberLineKeys(arrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 0))
@@ -295,6 +298,7 @@ class KeyboardLoaderUtil private constructor() {
             SkbStyleMode.Yuyan -> numberLine
             SkbStyleMode.Samsung -> numberLine
             SkbStyleMode.Google -> numberLine
+            SkbStyleMode.Wx -> numberLine
         }
         softKeyboard = getSoftKeyboard(rows, numberLineSkb)
         mSoftKeyboardMap[skbValue] = softKeyboard
@@ -318,6 +322,10 @@ class KeyboardLoaderUtil private constructor() {
                 } else if(skbStyleMode == SkbStyleMode.Samsung){
                     createT9Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2,
                         KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5))
+                } else if (skbStyleMode == SkbStyleMode.Wx) {
+                    // 微信：123 / 表情 / 逗号句号 / 空格 / 中英 + 发送（六键）
+                    createT9Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5, InputModeSwitcherManager.USER_DEF_KEYCODE_EMOJI_8,
+                            InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
                 } else {
                     createT9Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5,
                             KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
@@ -330,6 +338,9 @@ class KeyboardLoaderUtil private constructor() {
                 } else if (skbStyleMode == SkbStyleMode.Samsung) {
                     createQwertyKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2,
                         InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5))
+                } else if (skbStyleMode == SkbStyleMode.Wx) {
+                    createQwertyKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5, InputModeSwitcherManager.USER_DEF_KEYCODE_EMOJI_8,
+                            InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
                 } else {
                     createQwertyKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5,
                             InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
@@ -345,6 +356,9 @@ class KeyboardLoaderUtil private constructor() {
                 } else if (skbStyleMode == SkbStyleMode.Samsung) {
                     createLX17Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2,
                         InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5))
+                } else if (skbStyleMode == SkbStyleMode.Wx) {
+                    createLX17Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5, InputModeSwitcherManager.USER_DEF_KEYCODE_EMOJI_8,
+                            InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
                 } else {
                     createLX17Keys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5,
                             InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
@@ -357,6 +371,9 @@ class KeyboardLoaderUtil private constructor() {
                 } else if (skbStyleMode == SkbStyleMode.Samsung) {
                     createQwertyPYKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2,
                         InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5))
+                } else if (skbStyleMode == SkbStyleMode.Wx) {
+                    createQwertyPYKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5, InputModeSwitcherManager.USER_DEF_KEYCODE_EMOJI_8,
+                            InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
                 } else {
                     createQwertyPYKeys(arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_SYMBOL_3, InputModeSwitcherManager.USER_DEF_KEYCODE_NUMBER_5,
                             InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_COMMA_13, KeyEvent.KEYCODE_SPACE, InputModeSwitcherManager.USER_DEF_KEYCODE_LANG_2))
@@ -401,6 +418,21 @@ class KeyboardLoaderUtil private constructor() {
                     softKeyToggle.widthF = 0.18f
                     t9Keys[0].widthF = 0.18f;t9Keys[1].widthF = 0.21f
                     t9Keys[2].widthF = 0.21f;t9Keys[3].widthF = 0.21f
+                }
+            }
+        } else if (skbStyleMode == SkbStyleMode.Wx) {
+            // 微信底栏：左右留白稍宽（截图里键盘没贴边），发送键比中英键宽一点
+            when (t9Keys.size) {
+                5 -> {
+                    softKeyToggle.widthF = 0.18f
+                    t9Keys[0].widthF = 0.16f;t9Keys[1].widthF = 0.10f
+                    t9Keys[2].widthF = 0.10f;t9Keys[3].widthF = 0.26f
+                    t9Keys[4].widthF = 0.16f
+                }
+                else -> {
+                    softKeyToggle.widthF = 0.18f
+                    t9Keys[0].widthF = 0.18f;t9Keys[1].widthF = 0.16f
+                    t9Keys[2].widthF = 0.32f;t9Keys[3].widthF = 0.16f
                 }
             }
         } else {

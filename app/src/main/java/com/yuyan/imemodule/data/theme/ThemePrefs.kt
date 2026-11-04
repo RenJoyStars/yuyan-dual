@@ -47,12 +47,14 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         listOf(
             SkbStyleMode.Yuyan,
             SkbStyleMode.Google,
-            SkbStyleMode.Samsung
+            SkbStyleMode.Samsung,
+            SkbStyleMode.Wx
         ),
         listOf(
             R.string.keyboard_style_mod_yuyan,
             R.string.keyboard_style_mod_google,
             R.string.keyboard_style_mod_samsung,
+            R.string.keyboard_style_mod_wx,
         )
     )
 

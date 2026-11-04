@@ -14,7 +14,9 @@ private val skbStyleMode = ThemeManager.prefs.skbStyleMode
 
 private val skbStyleModeListener = ManagedPreference.OnChangeListener<SkbStyleMode> { _, value ->
    when(value){
-       SkbStyleMode.Samsung ->{
+       // 三星、微信这两种风格的字母区上方本来就带一排数字键，
+       // 切换过去时把开关一并打开，免得设置页显示「关」但键盘上却有数字行。
+       SkbStyleMode.Samsung, SkbStyleMode.Wx ->{
            AppPrefs.getInstance().keyboardSetting.abcNumberLine.setValue(true)
        }
        else ->{

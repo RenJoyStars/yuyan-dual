@@ -222,6 +222,7 @@
     <string name="keyboard_style_mod_yuyan">默认</string>
     <string name="keyboard_style_mod_google">谷歌</string>
     <string name="keyboard_style_mod_samsung">三星</string>
+    <string name="keyboard_style_mod_wx">微信</string>
 
     <!-- 新增：双屏设置 -->
     <string name="setting_dual_screen">双屏</string>
