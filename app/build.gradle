@@ -128,6 +128,16 @@ android {
         }
     }
 
+    // 词库（assets/rime/build/*.bin）以「不压缩」方式打进 APK。
+    //
+    // 这些 .bin 是 Rime 预编译的 table / prism，内容接近熵上限，deflate 收益有限；
+    // 不压缩换来的是：首次启动把词库复制到数据目录时**不需要边解压边写**，
+    // 65MB 直接按字节拷贝，省掉一段解压开销（双屏掌机首次初始化能快一截）。
+    // 代价是 APK 明显变大 —— 当前从约 47MB 涨到约 85MB，装完占用的空间是一样的。
+    androidResources {
+        noCompress += "bin"
+    }
+
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
             outputFileName = "yuyanIme_${versionCodeDate()}_${variant.getProductFlavors()[0].name}_${variant.buildType.name}.apk"   // offline      online
