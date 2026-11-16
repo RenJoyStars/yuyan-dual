@@ -65,6 +65,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val vibrationAmplitude = int("key_press_sound_volume", 0)     //触感强度
 
         val privacyPolicySure = bool("privacy_policy_sure", false) //是否同意隐私政策
+
+        // 回车即发送的应用名单（逗号分隔包名）。内置常见聊天应用，
+        // 用户可在同一份配置里追加；识别不到的还可以靠应用名关键词兜底。
+        val enterSendPackages = string("enter_send_packages", DEFAULT_ENTER_SEND_PACKAGES)
     }
 
     inner class Input : ManagedPreferenceCategory(R.string.setting_ime_input, sharedPreferences) {
@@ -177,6 +181,15 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
         // 锁定英语键盘:锁定后，切换到英语键盘，下次弹出键盘使用英语模式
         val keyboardLockEnglish = switch(R.string.keyboard_menu_lock_english, "keyboard_menu_lock_english_enable", false)
+
+        // 聊天类应用回车即发送：对没声明 IME_ACTION_SEND 的聊天 App（微信、QQ、钉钉等）
+        // 强制按「发送」处理，避免回车只换行。长按回车仍然是换行，不受影响。
+        val enterSendEnabled = switch(
+            R.string.enter_send_enabled,
+            "enter_send_enabled",
+            true,
+            R.string.enter_send_enabled_tips
+        )
 
         val oneHandedModSwitch = com.yuyan.imemodule.view.preference.ManagedPreference.PBool(sharedPreferences, "keyboard_one_handed_mod_enable", false).apply { register() }
 
@@ -350,6 +363,32 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     }
     companion object {
         private var instance: AppPrefs? = null
+
+        /**
+         * 内置的「回车即发送」应用包名。
+         * 这些都是聊天类，输入框本来是多行、没有声明 IME_ACTION_SEND，
+         * 不特殊处理的话回车只会换行。
+         */
+        const val DEFAULT_ENTER_SEND_PACKAGES =
+            "com.tencent.mm," +                    // 微信
+            "com.tencent.mobileqq," +              // QQ
+            "com.tencent.wework," +                // 企业微信
+            "com.alibaba.android.rimet," +         // 钉钉
+            "com.alibaba.dingtalk," +              // 钉钉（旧包名）
+            "com.ss.android.lark," +               // 飞书
+            "org.telegram.messenger," +            // Telegram
+            "org.telegram.messenger.web," +        // Telegram X
+            "com.discord," +                       // Discord
+            "jp.naver.line.android"                // LINE
+
+        /**
+         * 应用名关键词兜底：包名没命中时，用应用显示名判断。
+         * 覆盖用户装的其他聊天工具，也覆盖 WorkBuddy 这类包名不固定的应用。
+         */
+        val ENTER_SEND_NAME_KEYWORDS = listOf(
+            "微信", "QQ", "企业微信", "钉钉", "飞书", "Telegram", "Discord",
+            "聊天", "WorkBuddy", "Slack", "WhatsApp", "Signal", "Line"
+        )
 
         /**
          * MUST call before use

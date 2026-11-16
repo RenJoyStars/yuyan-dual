@@ -347,6 +347,8 @@ class ImeService : InputMethodService() {
     override fun onStartInput(editorInfo: EditorInfo, restarting: Boolean) {
         super.onStartInput(editorInfo, restarting)
         val pkg = try { editorInfo.packageName } catch (_: Throwable) { null }
+        // 换输入框就重算一次「回车即发送」，否则用户在设置里改了名单要重启才生效
+        enterSendCache.remove(pkg)
         // Log.d(logTag, "onStartInput: pkg=$pkg restarting=$restarting") // 调试标签已隐藏
     }
 
@@ -455,11 +457,53 @@ class ImeService : InputMethodService() {
             }
         }
 
+        // ②.5 聊天类应用兜底：微信/QQ/钉钉这类输入框是多行的，
+        //      imeOptions 里根本没有 SEND，靠系统声明永远等不到动作。
+        //      命中名单就强制按「发送」处理，否则回车只会多一行。
+        if (shouldEnterSend(info)) {
+            ic.performEditorAction(EditorInfo.IME_ACTION_SEND)
+            return
+        }
+
         // ③ 其余一律当换行：普通多行输入框、未声明动作的文本框，
         //    以及 inputType 为 TYPE_NULL（不支持编辑）的情况。
         val t = SystemClock.uptimeMillis()
         sendDownKeyEvent(t, KeyEvent.KEYCODE_ENTER)
         sendUpKeyEvent(t, KeyEvent.KEYCODE_ENTER)
+    }
+
+    /** 包名 → 是否回车即发送，避免每次按键都查 PackageManager */
+    private val enterSendCache = HashMap<String, Boolean>()
+
+    /**
+     * 判断当前输入框所在应用是否要走「回车即发送」。
+     * 先按配置里的包名精确匹配，没命中再用应用显示名关键词兜底
+     * （WorkBuddy 这类包名不固定的应用只能靠名字认）。
+     */
+    private fun shouldEnterSend(info: EditorInfo): Boolean {
+        if (!getInstance().keyboardSetting.enterSendEnabled.getValue()) return false
+        val pkg = try { info.packageName } catch (_: Throwable) { null } ?: return false
+        enterSendCache[pkg]?.let { return it }
+
+        val configured = getInstance().internal.enterSendPackages.getValue()
+            .split(',', '，', '\n')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        var hit = configured.any { it.equals(pkg, ignoreCase = true) }
+        if (!hit) {
+            hit = try {
+                val pm = packageManager
+                val label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                com.yuyan.imemodule.prefs.AppPrefs.ENTER_SEND_NAME_KEYWORDS.any {
+                    label.contains(it, ignoreCase = true)
+                }
+            } catch (_: Throwable) {
+                false
+            }
+        }
+        enterSendCache[pkg] = hit
+        return hit
     }
 
     // ── 手势编辑（对齐微信输入法的删除键手势）──────────────────────

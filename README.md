@@ -3,22 +3,27 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/RenJoyStars/yuyan-dual)](https://github.com/RenJoyStars/yuyan-dual/releases)
 ![Platform](https://img.shields.io/badge/Android-8.0%2B%20%C2%B7%20arm64-green)
-![Size](https://img.shields.io/badge/APK-47MB-lightgrey)
+![Size](https://img.shields.io/badge/APK-91MB-lightgrey)
 
 本项目是 [语燕双屏版](https://github.com/Maditer/YuyanDual) 的衍生维护版本，面向 **AYN Thor 这类双屏安卓掌机**。
 在原版基础上做了这些改动：
 
-- **移除离线语音输入**（sherpa-ncnn）：连录音权限、权限请求页、语音设置页一并去掉，安装包从 135MB 降到 47MB
+- **移除离线语音输入**（sherpa-ncnn）：连录音权限、权限请求页、语音设置页一并去掉，
+  安装包从 135MB 降到 47MB（后续加了主题与样式资源，当前约 91MB）
 - **修复 UU远程里点输入框不弹键盘**：远程桌面类应用强制「键盘与输入框同屏」
 - **双屏界面整理**：发送键改成胶囊形（不再被拉成椭圆）、键盘高度按屏幕实际高度计算、
   主副屏输入视图重新绑定（副屏用完回主屏不再失灵）、切输入框不再闪、副屏旋转后自动重排
 - **补回 Rime 词库与预编译方案**：原仓库 `.gitignore` 把 `*.yaml/*.bin/*.txt` 全忽略了，
   直接 clone 编出来的包**一个字也打不出来**，这里已补全
+- **聊天应用回车即发送**：微信、QQ、企业微信、钉钉、飞书这些输入框是多行的，
+  `imeOptions` 里根本不声明「发送」，所以按回车只会换行。现在按包名（以及应用名关键词）识别后，
+  回车直接走 `IME_ACTION_SEND` 发出去，**长按回车仍然是换行**。
+  开关在「设置 → 键盘 → 聊天应用回车即发送」，默认开启
 
 ## 下载安装
 
 到 [Releases](https://github.com/RenJoyStars/yuyan-dual/releases/latest) 下载最新版
-（**v0.3.1**，arm64-v8a，约 47MB）。
+（**v0.3.10**，arm64-v8a，约 91MB）。
 
 1. 安装 APK
 2. 「设置 → 系统 → 语言和输入法」中启用「语燕输入法」并设为默认
