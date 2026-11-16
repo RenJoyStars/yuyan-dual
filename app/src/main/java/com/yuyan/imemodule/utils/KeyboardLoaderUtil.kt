@@ -172,32 +172,37 @@ class KeyboardLoaderUtil private constructor() {
                 rows.add(keyBeans)
             }
             InputModeSwitcherManager.MASK_SKB_LAYOUT_NUMBER -> {  // 5000 数字键盘
-                var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys =  KeyboardData.layoutT9Number[skbStyleMode]!!
-                var t9Keys = createT9NumberKeys(keys[0])
-                t9Keys.first().apply {
-                    widthF = 0.18f
-                    heightF = 0.75f
+                val keys = KeyboardData.layoutT9Number[skbStyleMode]!!
+                val numberRows = mutableListOf<List<SoftKey>>()
+                // 前三行 1–9
+                for (i in 0..2) {
+                    val t9Keys = createT9NumberKeys(keys[i])
+                    if (i == 0) t9Keys.first().widthF = 0.18f
+                    else t9Keys.first().mLeftF = 0.185f
+                    t9Keys.last().widthF = 0.18f
+                    numberRows.add(t9Keys.asList())
                 }
-                t9Keys.last().widthF = 0.18f
-                keyBeans.addAll(t9Keys)
-                rows.add(keyBeans)
+                // 第四行只有 0：原来 1–9 就把三行占满了，0 从来没有位置。
+                // 硬塞进第三行会把 @ 挤掉，所以单独起一行，左对齐 4、7 那一列。
+                val zeroRow = createT9NumberKeys(keys[3])
+                zeroRow.first().mLeftF = 0.185f
+                numberRows.add(zeroRow.asList())
+                val bottomRow = lastRows(skbValue)
 
-                keyBeans = LinkedList()
-                t9Keys = createT9NumberKeys(keys[1])
-                t9Keys.first().mLeftF = 0.185f
-                t9Keys.last().widthF = 0.18f
-                keyBeans.addAll(t9Keys)
-                rows.add(keyBeans)
+                // 行高：数字区 4 行 + 底栏共 5 行。原来 4 行是按每行 0.25 排的，
+                // 多一行还按 0.25 总高会到 1.25、超出键盘区，这里统一按 1/5 重算。
+                val rowHeight = 1f / (numberRows.size + 1)
+                numberRows.forEach { row -> row.forEach { it.heightF = rowHeight } }
+                bottomRow.forEach { it.heightF = rowHeight }
+                // 左侧竖长条键（符号入口）纵向贯穿整个数字区，高度跟着行数走
+                val sidebarHeight = rowHeight * numberRows.size
+                numberRows.forEach { row ->
+                    row.firstOrNull { it.code == InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_SYMBOL_12 }
+                        ?.heightF = sidebarHeight
+                }
 
-                keyBeans = LinkedList()
-                t9Keys = createT9NumberKeys(keys[2])
-                t9Keys.first().mLeftF = 0.185f
-                t9Keys.last().widthF = 0.18f
-                keyBeans.addAll(t9Keys)
-                rows.add(keyBeans)
-                keyBeans = lastRows(skbValue)
-                rows.add(keyBeans)
+                rows.addAll(numberRows)
+                rows.add(bottomRow)
             }
             InputModeSwitcherManager.MASK_SKB_LAYOUT_LX17 -> {     // 6000 乱序17键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()

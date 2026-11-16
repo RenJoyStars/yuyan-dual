@@ -134,23 +134,28 @@ object KeyboardData {
             arrayOf(54, 52, 31, 50, 30, 42, 41, KeyEvent.KEYCODE_DEL)),
     )
 
+    // 数字盘：前三行 1–9，第四行单独放 0（原来没有 0，DEL 挤在第一行、@ 在第三行）。
     val layoutT9Number: Map<SkbStyleMode, ArrayList<Array<Int>>> = linkedMapOf(
         SkbStyleMode.Google to arrayListOf(
             arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_SYMBOL_12, 8, 9, 10, KeyEvent.KEYCODE_DEL),
             arrayOf(11, 12, 13, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14),
-            arrayOf(14, 15, 16, InputModeSwitcherManager.USER_DEF_KEYCODE_SHIFT_1)),
+            arrayOf(14, 15, 16, InputModeSwitcherManager.USER_DEF_KEYCODE_SHIFT_1),
+            arrayOf(KeyEvent.KEYCODE_0)),
         SkbStyleMode.Samsung to arrayListOf(
             arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_SYMBOL_12, 8, 9, 10, KeyEvent.KEYCODE_DEL),
             arrayOf(11, 12, 13, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14),
-            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT)),
+            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT),
+            arrayOf(KeyEvent.KEYCODE_0)),
         SkbStyleMode.Yuyan to arrayListOf(
             arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_SYMBOL_12, 8, 9, 10, KeyEvent.KEYCODE_DEL),
             arrayOf(11, 12, 13, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14),
-            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT)),
+            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT),
+            arrayOf(KeyEvent.KEYCODE_0)),
         SkbStyleMode.Wx to arrayListOf(
             arrayOf(InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_SYMBOL_12, 8, 9, 10, KeyEvent.KEYCODE_DEL),
             arrayOf(11, 12, 13, InputModeSwitcherManager.USER_DEF_KEYCODE_LEFT_PERIOD_14),
-            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT)),
+            arrayOf(14, 15, 16, KeyEvent.KEYCODE_AT),
+            arrayOf(KeyEvent.KEYCODE_0)),
     )
 
     val layoutTextEdit: Map<SkbStyleMode, ArrayList<Array<Int>>> = linkedMapOf(

@@ -19,6 +19,7 @@ import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.prefs.behavior.KeyboardSymbolSlideUpMod
 import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
+import com.yuyan.imemodule.prefs.behavior.SkbStyleMode
 import com.yuyan.imemodule.service.DecodingInfo
 import com.yuyan.imemodule.singleton.EnvironmentSingleton
 import com.yuyan.imemodule.utils.DevicesUtils
@@ -113,12 +114,17 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
             val softKey = mCurrentKey!!
             Log.d(TAG, "Current key: code=${softKey.code}, label='${softKey.getkeyLabel()}'")
             val keyboardSymbol = ThemeManager.prefs.keyboardSymbol.getValue()
+            // 微信风格把 1–0 印在字母键的上标位（labelSmall），见 KeyboardLoaderUtil.applyWxNumberSuperscript。
+            // 它不跟随「附注符号」开关：TextField 里画得上标是由 skbStyleMode==Wx 单独放行的，
+            // 这里若只认 keyboardSymbol，关掉附注符号就变成「键面画着数字、长按取不到」。
+            val smallLabelEnabled = keyboardSymbol ||
+                ThemeManager.prefs.skbStyleMode.getValue() == SkbStyleMode.Wx
             
             if (softKey.getkeyLabel().isNotBlank() && softKey.code != InputModeSwitcherManager.USER_DEF_KEYCODE_EMOJI_8 ) {
                 val keyLabel = if (InputModeSwitcherManager.isEnglishLower || (InputModeSwitcherManager.isEnglishUpperCase && !DecodingInfo.isCandidatesListEmpty))
                     softKey.keyLabel.lowercase()  else softKey.keyLabel
                 val designPreset = setOf("，", "。", ",", ".")
-                val smallLabel = if(designPreset.any { it == keyLabel } || !keyboardSymbol) "" else softKey.getmKeyLabelSmall()
+                val smallLabel = if(designPreset.any { it == keyLabel } || !smallLabelEnabled) "" else softKey.getmKeyLabelSmall()
                 val bounds = Rect(softKey.mLeft, softKey.mTop, softKey.mRight, softKey.mBottom)
                 popupComponent.showKeyboard(keyLabel, smallLabel, bounds)
                 mLongPressKey = true
@@ -306,7 +312,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 result = true
             }
         } else if(keyLableSmall?.isNotBlank() == true){
-            if (isVertical && distanceY > 0 && relDiffY > symbolSlideUp && ThemeManager.prefs.keyboardSymbol.getValue()){   // 向上滑动
+            if (isVertical && distanceY > 0 && relDiffY > symbolSlideUp &&
+                (ThemeManager.prefs.keyboardSymbol.getValue() ||
+                    ThemeManager.prefs.skbStyleMode.getValue() == SkbStyleMode.Wx)){   // 向上滑动
+                // 微信风格的数字上标同样要放行：它不跟着附注符号开关走，见 openPopupIfRequired
                 lastEventX = currentX
                 lastEventY = currentY
                 lastEventActionIndex = currentEvent.actionIndex

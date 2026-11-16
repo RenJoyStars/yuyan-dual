@@ -389,9 +389,13 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         val englishCellDisable = InputModeSwitcherManager.isEnglish && !getInstance().input.abcSearchEnglishCell.getValue()
         val result = if(englishCellDisable){
             processEnglishKey(event)
-        } else if (InputModeSwitcherManager.isEnglish || InputModeSwitcherManager.isChinese) { // 中文、英语输入模式
+        } else if (InputModeSwitcherManager.isEnglish || InputModeSwitcherManager.isChinese
+            || InputModeSwitcherManager.isNumberSkb) { // 中文、英语输入模式；数字盘另算一类
+            // 数字盘必须走 processInput：它的按键是手工构造的 KeyEvent（unicodeChar=0），
+            // 走 processEnglishKey 只会 sendKeyEvent(KEYCODE_1..9)，普通输入框不认，
+            // 结果就是按下去什么都不上屏。分支里的 isNumberSkb 判断负责直接 commitText。
             processInput(event)
-        } else { // 数字、符号处理
+        } else { // 符号处理
             processEnglishKey(event)
         }
         return result
