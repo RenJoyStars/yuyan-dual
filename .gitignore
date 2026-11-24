@@ -713,3 +713,6 @@ config.local
 !app/src/main/assets/rime/**
 !app/src/main/assets/hw/**
 !app/src/main/assets/pinyindb/**
+
+# README 配图（上面的 *.png 本是给构建产物用的，别把 docs 一起吃掉）
+!docs/*.png

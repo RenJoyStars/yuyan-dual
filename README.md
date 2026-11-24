@@ -1,3 +1,5 @@
+<img src="docs/banner.png" alt="语燕输入法双屏版" width="100%">
+
 # 语燕输入法双屏版（RenJoy 维护版）
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
@@ -49,6 +51,14 @@
 | 单手模式 | 深色主题 |
 |---|---|
 | ![单手](images/onehand.jpg) | ![深色](images/dark.jpg) |
+
+| 设置 | 剪贴板 |
+|---|---|
+| ![设置](images/setting.jpg) | ![剪贴板](images/clipboard.jpg) |
+
+| 数字键盘 | 文本编辑 |
+|---|---|
+| ![数字键盘](images/number.jpg) | ![文本编辑](images/textedit.jpg) |
 
 <sub>截图为上游版本的界面，本版除「发送键改为胶囊形」「移除语音输入」外基本一致。</sub>
 
